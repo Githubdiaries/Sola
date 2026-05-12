@@ -4,9 +4,10 @@
 
 Sola is an open-source B2B geospatial platform that identifies and ranks the best locations for solar PV installations within a city. It focuses on maximum usable surface area (rooftops, parking canopies, industrial land, brownfields, and suitable open spaces) after accounting for setbacks, shading, structural viability, flood/damp risk, land-use restrictions, and grid proximity.
 
-### Expected Preview (Prototype)
+### MVP
 
-<img width="1536" height="1024" alt="Sola AI v.1" src="https://github.com/user-attachments/assets/93f364b8-bd13-4e52-bfa3-800215eba661" />
+<img width="1536" height="1024" alt="Sola AI v.0" src="https://github.com/user-attachments/assets/f1ece94d-e9e8-4144-a5f3-946aefc817e8" />
+" />
 
 ---
 
