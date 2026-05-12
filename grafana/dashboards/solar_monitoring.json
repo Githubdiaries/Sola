@@ -1,0 +1,125 @@
+{
+  "__inputs": [],
+  "__requires": [
+    {"type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0"},
+    {"type": "panel", "id": "timeseries", "name": "Time series", "version": ""},
+    {"type": "panel", "id": "gauge", "name": "Gauge", "version": ""},
+    {"type": "panel", "id": "stat", "name": "Stat", "version": ""}
+  ],
+  "annotations": {"list": []},
+  "description": "Sola – Post-Installation Solar PV Monitoring Dashboard",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Total Active Power (kW)",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kW",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 50},
+              {"color": "green", "value": 200}
+            ]
+          }
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "orientation": "auto", "colorMode": "background"}
+    },
+    {
+      "id": 2,
+      "title": "Today's Energy Yield (kWh)",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "fieldConfig": {"defaults": {"unit": "kWh"}},
+      "options": {"reduceOptions": {"calcs": ["sum"]}, "orientation": "auto", "colorMode": "value"}
+    },
+    {
+      "id": 3,
+      "title": "Performance Ratio (%)",
+      "type": "gauge",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 60},
+              {"color": "green", "value": 75}
+            ]
+          }
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 4,
+      "title": "CO₂ Avoided (kg)",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}},
+      "options": {"reduceOptions": {"calcs": ["sum"]}, "colorMode": "value"}
+    },
+    {
+      "id": 5,
+      "title": "AC Power Output (kW) — 24 h",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+      "fieldConfig": {"defaults": {"unit": "kW", "custom": {"lineWidth": 2}}}
+    },
+    {
+      "id": 6,
+      "title": "Irradiance vs Output Correlation",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+      "fieldConfig": {
+        "defaults": {"custom": {"lineWidth": 1}},
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "Irradiance (W/m²)"}, "properties": [{"id": "unit", "value": "watt"}]},
+          {"matcher": {"id": "byName", "options": "AC Power (kW)"}, "properties": [{"id": "unit", "value": "kW"}]}
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "title": "Monthly Energy Yield (MWh)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 12},
+      "fieldConfig": {"defaults": {"unit": "MWh", "custom": {"lineWidth": 2, "fillOpacity": 20}}}
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 38,
+  "tags": ["solar", "sola", "renewable", "monitoring"],
+  "templating": {
+    "list": [
+      {
+        "name": "site",
+        "label": "Site",
+        "type": "query",
+        "query": "SHOW TAG VALUES WITH KEY = \"site_id\"",
+        "multi": true,
+        "includeAll": true,
+        "current": {}
+      }
+    ]
+  },
+  "time": {"from": "now-24h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Sola – Solar PV Monitoring",
+  "uid": "sola-monitoring-v1",
+  "version": 1
+}
