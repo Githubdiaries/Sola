@@ -1,6 +1,6 @@
 # Sola
 
-**GIS-powered solar site discovery for utility-scale virtual aggregation — powering renewable data centers.**
+*GIS-powered solar site discovery for utility-scale virtual aggregation — powering renewable data centers.*
 
 An open-source geospatial platform that identifies and ranks the **best locations** for solar PV installations within a city, with maximum usable surface area after all practical constraints.
 
@@ -25,3 +25,42 @@ Help data center operators (hyperscale & edge) discover high-potential solar sit
 - **Deployment**: Docker + Docker Compose
 
 ### Project Structure
+
+```bash
+solarforge/
+├── backend/           # FastAPI application
+├── frontend/          # Next.js frontend
+├── gis-processing/    # Jupyter notebooks + processing scripts
+├── grafana/           # Dashboard definitions
+├── data/              # Sample data + ingestion scripts
+├── docs/              # Documentation
+├── docker-compose.yml
+├── README.md
+└── LICENSE
+``` 
+
+
+---
+
+### Local Development
+
+```bash
+# 1. Start the stack
+docker-compose up -d
+
+# 2. Backend + DB will be available
+# 3. Grafana at http://localhost:3000
+
+```
+
+### Current Status
+
+**Phase 0: Repository setup + architecture**
+**Next: Data ingestion pipeline for first pilot city**
+
+### Contributing
+We welcome contributions! See docs/CONTRIBUTING.md (coming soon).
+License
+AGPL-3.0
+
+
