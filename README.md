@@ -60,12 +60,13 @@ docker-compose up -d
 
 ### Current Status
 
-**Phase 0: Repository setup + architecture**
-**Next: Data ingestion pipeline for first pilot city**
+* Phase 0: Repository setup + architecture 
+* Next: Data ingestion pipeline for first pilot city 
 
 ### Contributing
 We welcome contributions! See docs/CONTRIBUTING.md (coming soon).
-License
+
+### License
 AGPL-3.0
 
 
