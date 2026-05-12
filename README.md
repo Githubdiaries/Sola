@@ -39,6 +39,11 @@ solarforge/
 └── LICENSE
 ``` 
 
+### Expected Pre-view
+
+<img width="1536" height="1024" alt="Sola AI" src="https://github.com/user-attachments/assets/7cae982c-69e1-4742-b7c8-603059a527d7" />
+
+
 
 ---
 
