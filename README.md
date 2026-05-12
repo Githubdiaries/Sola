@@ -4,6 +4,10 @@
 
 Sola is an open-source B2B geospatial platform that identifies and ranks the best locations for solar PV installations within a city. It focuses on maximum usable surface area (rooftops, parking canopies, industrial land, brownfields, and suitable open spaces) after accounting for setbacks, shading, structural viability, flood/damp risk, land-use restrictions, and grid proximity.
 
+### Expected Preview (Prototype)
+
+<img width="1536" height="1024" alt="Sola AI v.1" src="https://github.com/user-attachments/assets/93f364b8-bd13-4e52-bfa3-800215eba661" />
+
 ---
 
 ## Core Purpose
@@ -48,6 +52,8 @@ Weights are configurable via the **Scoring Weights** page in the UI.
 
 ## Architecture
 
+MVP (this repository):
+
 ```
 sola/
 ├── app/
@@ -64,6 +70,22 @@ sola/
 │   └── test_data.py
 └── requirements.txt
 ```
+
+Planned full-stack architecture:
+
+```
+sola/
+├── backend/           # FastAPI application
+├── frontend/          # Next.js + TypeScript + Mapbox GL JS
+├── gis-processing/    # GeoPandas, Rasterio, PVLib notebooks
+├── grafana/           # Dashboard definitions
+├── data/              # Data ingestion scripts
+├── docs/
+└── docker-compose.yml
+```
+
+**MVP tech stack**: Python · Streamlit · Folium · Pandas · NumPy  
+**Planned stack**: FastAPI · PostgreSQL/PostGIS · Next.js · GeoPandas · PVLib · PyTorch · Grafana/TimescaleDB · Docker
 
 ---
 
@@ -115,6 +137,15 @@ Import `grafana/dashboards/solar_monitoring.json` into a Grafana instance (≥ 1
 
 ---
 
+## Current Status
+
+- ✅ Phase 0: Repository setup + architecture
+- ✅ Phase 1: MVP — Streamlit scoring & mapping app
+- 🔜 Phase 2: Data ingestion pipeline for first pilot city
+- 🔜 Phase 3: Full-stack (FastAPI + Next.js + PostGIS)
+
+---
+
 ## Roadmap
 
 - [ ] Real GIS data ingestion (OS MasterMap, OpenStreetMap, satellite imagery)
@@ -127,6 +158,12 @@ Import `grafana/dashboards/solar_monitoring.json` into a Grafana instance (≥ 1
 
 ---
 
+## Contributing
+
+We welcome contributions! See `docs/CONTRIBUTING.md` (coming soon).
+
+---
+
 ## License
 
-MIT
+AGPL-3.0
