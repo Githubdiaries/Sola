@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl, { type Map, type MapLayerMouseEvent } from "maplibre-gl";
-import { ArrowUpRight, Building2, CheckCircle2, Filter, Gauge, MapPin, Search, SlidersHorizontal, Zap } from "lucide-react";
+import { CheckCircle2, Gauge, GripHorizontal, MapPin, Minus, Plus, Search, SlidersHorizontal } from "lucide-react";
 
 type SiteProperties = {
   id: string;
@@ -72,6 +72,8 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
   const mapRef = useRef<Map | null>(null);
   const [selectedSite, setSelectedSite] = useState<SiteFeature | null>(sites.features[0] ?? null);
   const [hoveredSite, setHoveredSite] = useState<SiteFeature | null>(null);
+  const [mapZoom, setMapZoom] = useState(11);
+  const [rankedHeight, setRankedHeight] = useState(430);
   const [filters, setFilters] = useState<Filters>({
     city: sites.features.some((site) => site.properties.city === "Thiruvananthapuram") ? "Thiruvananthapuram" : "all",
     minScore: 0,
@@ -156,7 +158,7 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
     });
 
     mapRef.current = map;
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+    map.on("zoom", () => setMapZoom(Number(map.getZoom().toFixed(2))));
 
     map.on("load", () => {
       map.addSource("solar-sites", {
@@ -340,7 +342,7 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
                 <div className="grid grid-cols-2 gap-3">
                   <Metric label="Top Score" value={`${(topSite?.properties.suitability_score ?? 0).toFixed(1)}%`} />
                   <Metric label="Avg Score" value={`${avgScore.toFixed(1)}%`} />
-                  <Metric label="Usable Area" value={`${formatCompact(totalArea)} m²`} />
+                  <Metric label="Usable Area" value={`${formatCompact(totalArea)} m2`} />
                   <Metric label="Est. DC" value={`${formatCompact(totalCapacityKw)} kW`} />
                 </div>
               </div>
@@ -356,6 +358,8 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
             />
             <RankedList
               features={filteredFeatures}
+              height={rankedHeight}
+              onResize={setRankedHeight}
               selectedId={selectedId}
               onSelect={(site) => {
                 setSelectedSite(site);
@@ -369,6 +373,9 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
               hoveredSite={hoveredSite}
               mapContainerRef={mapContainerRef}
               onFit={() => fitToSites(mapRef.current, filteredFeatures)}
+              onZoomChange={(zoom) => setMapZoomLevel(mapRef.current, zoom)}
+              onZoomDelta={(delta) => setMapZoomLevel(mapRef.current, mapZoom + delta)}
+              zoom={mapZoom}
             />
           </section>
 
@@ -448,9 +455,9 @@ function ControlPanel({
           onChange={(value) => setFilters((current) => ({ ...current, minArea: Number(value) }))}
           options={[
             ["0", "Any area"],
-            ["8000", "8,000 m²+"],
-            ["10000", "10,000 m²+"],
-            ["20000", "20,000 m²+"],
+            ["8000", "8,000 m2+"],
+            ["10000", "10,000 m2+"],
+            ["20000", "20,000 m2+"],
           ]}
           value={`${filters.minArea}`}
         />
@@ -507,21 +514,45 @@ function QuickButton({ label, onClick }: { label: string; onClick: () => void })
 
 function RankedList({
   features,
+  height,
+  onResize,
   onSelect,
   selectedId,
 }: {
   features: SiteFeature[];
+  height: number;
+  onResize: (height: number) => void;
   onSelect: (site: SiteFeature) => void;
   selectedId: string;
 }) {
+  const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+
+    const startY = event.clientY;
+    const startHeight = height;
+
+    const move = (moveEvent: PointerEvent) => {
+      const nextHeight = startHeight + moveEvent.clientY - startY;
+      onResize(Math.max(280, Math.min(640, nextHeight)));
+    };
+
+    const stop = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+    };
+
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop);
+  };
+
   return (
-    <section className="rounded-[24px] border border-white/10 bg-[#081610]/85 p-3">
+    <section className="relative rounded-[24px] border border-white/10 bg-[#081610]/85 p-3" style={{ height }}>
       <div className="mb-3 flex items-center justify-between px-1">
         <h3 className="text-sm font-medium text-white">Ranked candidates</h3>
-        <span className="text-xs text-emerald-100/50">{features.length} sites</span>
+        <span className="text-xs text-emerald-100/50">{features.length} sites · drag handle</span>
       </div>
-      <div className="space-y-2">
-        {features.slice(0, 8).map((site, index) => (
+      <div className="space-y-2 overflow-auto pr-1" style={{ height: height - 58 }}>
+        {features.map((site, index) => (
           <button
             className={`w-full rounded-2xl border p-3 text-left transition ${
               selectedId === site.properties.id
@@ -540,11 +571,19 @@ function RankedList({
               <ScoreChip value={site.properties.suitability_score} />
             </div>
             <div className="mt-3 flex items-center justify-between text-xs text-emerald-100/55">
-              <span>{formatCompact(site.properties.usable_area_sqm)} m²</span>
+              <span>{formatCompact(site.properties.usable_area_sqm)} m2</span>
               <span>{site.properties.grid_distance_km.toFixed(1)} km grid</span>
             </div>
           </button>
         ))}
+      </div>
+      <div
+        aria-label="Resize ranked candidates"
+        className="absolute bottom-0 left-4 right-4 flex h-8 cursor-row-resize items-end justify-center rounded-b-[24px] bg-gradient-to-t from-[#081610] via-[#081610]/92 to-transparent pb-1 text-emerald-100/45 hover:text-emerald-100"
+        onPointerDown={startResize}
+        role="separator"
+      >
+        <GripHorizontal size={18} />
       </div>
     </section>
   );
@@ -554,10 +593,16 @@ function MapWorkspace({
   hoveredSite,
   mapContainerRef,
   onFit,
+  onZoomChange,
+  onZoomDelta,
+  zoom,
 }: {
   hoveredSite: SiteFeature | null;
   mapContainerRef: React.RefObject<HTMLDivElement | null>;
   onFit: () => void;
+  onZoomChange: (zoom: number) => void;
+  onZoomDelta: (delta: number) => void;
+  zoom: number;
 }) {
   return (
     <div className="relative h-full min-h-[520px]">
@@ -577,6 +622,41 @@ function MapWorkspace({
         <MapPin size={15} />
         Fit city
       </button>
+
+      <div className="absolute right-4 top-16 z-10 w-[214px] rounded-2xl border border-white/10 bg-[#07140f]/90 p-3 shadow-2xl backdrop-blur">
+        <div className="mb-2 flex items-center justify-between text-xs">
+          <span className="text-emerald-100/50">Zoom</span>
+          <span className="font-medium text-emerald-100">{zoom.toFixed(1)}x</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            aria-label="Zoom out slightly"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-white/10 bg-black/22 text-emerald-50 transition hover:border-emerald-300/35 hover:bg-emerald-300/10"
+            onClick={() => onZoomDelta(-0.35)}
+            type="button"
+          >
+            <Minus size={15} />
+          </button>
+          <input
+            aria-label="Map zoom level"
+            className="sola-zoom-slider min-w-0 flex-1"
+            max={17}
+            min={9}
+            onChange={(event) => onZoomChange(Number(event.target.value))}
+            step={0.1}
+            type="range"
+            value={zoom}
+          />
+          <button
+            aria-label="Zoom in slightly"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-white/10 bg-black/22 text-emerald-50 transition hover:border-emerald-300/35 hover:bg-emerald-300/10"
+            onClick={() => onZoomDelta(0.35)}
+            type="button"
+          >
+            <Plus size={15} />
+          </button>
+        </div>
+      </div>
 
       <div className="absolute bottom-4 left-4 z-10 w-[240px] rounded-2xl border border-white/10 bg-[#07140f]/90 p-4 shadow-2xl backdrop-blur">
         <div className="mb-3 flex items-center justify-between">
@@ -601,7 +681,7 @@ function MapWorkspace({
             <ScoreChip value={hoveredSite.properties.suitability_score} />
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-emerald-50/70">
-            <InfoTile label="Area" value={`${formatCompact(hoveredSite.properties.usable_area_sqm)} m²`} />
+            <InfoTile label="Area" value={`${formatCompact(hoveredSite.properties.usable_area_sqm)} m2`} />
             <InfoTile label="Grid" value={`${hoveredSite.properties.grid_distance_km.toFixed(1)} km`} />
           </div>
         </div>
@@ -637,7 +717,7 @@ function SiteDetail({ site }: { site: SiteFeature | null }) {
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-2">
-        <InfoTile label="Usable area" value={`${formatCompact(properties.usable_area_sqm)} m²`} />
+        <InfoTile label="Usable area" value={`${formatCompact(properties.usable_area_sqm)} m2`} />
         <InfoTile label="Capacity" value={`${formatCompact(capacityKw)} kW`} />
         <InfoTile label="Annual yield" value={`${formatCompact(annualGeneration / 1000)} MWh`} />
         <InfoTile label="Grid distance" value={`${properties.grid_distance_km.toFixed(1)} km`} />
@@ -751,6 +831,15 @@ function updateSelectionPaint(map: Map, selectedId: string) {
   map.setPaintProperty("solar-site-glow", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 24, 15]);
   map.setPaintProperty("solar-site-points", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 8, 5.5]);
   map.setPaintProperty("solar-site-points", "circle-stroke-width", ["case", ["==", ["get", "id"], selectedId], 2.8, 1.3]);
+}
+
+function setMapZoomLevel(map: Map | null, zoom: number) {
+  if (!map) {
+    return;
+  }
+
+  const clampedZoom = Math.max(9, Math.min(17, zoom));
+  map.easeTo({ zoom: clampedZoom, duration: 220 });
 }
 
 function fitToSites(map: Map | null, features: SiteFeature[]) {
