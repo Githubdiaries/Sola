@@ -17,7 +17,7 @@ The product helps teams find rooftops and land parcels with the most usable sola
 - Backend: Python 3.11, FastAPI async, SQLAlchemy 2.0, GeoAlchemy2.
 - Database: PostgreSQL 16 with PostGIS 3.4.
 - GIS: GeoPandas, Shapely, PVLib, Rasterio.
-- Frontend: Next.js 15 App Router, TypeScript, Tailwind, Mapbox GL JS-ready.
+- Frontend: Next.js 15 App Router, TypeScript, Tailwind, MapLibre GL JS.
 - Container: Docker Compose with PostGIS, backend API, and Grafana.
 
 ## Repository Structure
@@ -37,6 +37,7 @@ Sola/
 
 - `GET /api/v1/sites` returns GeoJSON FeatureCollections.
 - Filters: `city`, `min_area_sqm`, `min_score`, and `limit`.
+- Token-free MVP map using MapLibre GL JS and OpenStreetMap raster tiles.
 - Realistic suitability scoring:
   - usable area weight
   - irradiance weight
