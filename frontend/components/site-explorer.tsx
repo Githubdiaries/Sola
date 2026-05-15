@@ -1,27 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type React from "react";
 import maplibregl, { type Map, type MapLayerMouseEvent } from "maplibre-gl";
-import {
-  AlertTriangle,
-  BarChart3,
-  Bell,
-  Building2,
-  Database,
-  Gauge,
-  Grid2X2,
-  Layers,
-  MapPin,
-  RefreshCw,
-  Search,
-  Settings,
-  Share2,
-  ShieldCheck,
-  SlidersHorizontal,
-  Sparkles,
-  Zap,
-} from "lucide-react";
+import { ArrowUpRight, Building2, CheckCircle2, Filter, Gauge, MapPin, Search, SlidersHorizontal, Zap } from "lucide-react";
 
 type SiteProperties = {
   id: string;
@@ -40,7 +21,6 @@ type SiteProperties = {
 };
 
 export type SiteFeature = GeoJSON.Feature<GeoJSON.Polygon, SiteProperties>;
-
 type SiteCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon, SiteProperties>;
 type PointFeature = GeoJSON.Feature<GeoJSON.Point, SiteProperties>;
 
@@ -49,16 +29,17 @@ type Filters = {
   minScore: number;
   minArea: number;
   assetType: string;
+  query: string;
 };
+
+const numberFormatter = new Intl.NumberFormat("en-US");
 
 const emptyCollection: SiteCollection = {
   type: "FeatureCollection",
   features: [],
 };
 
-const numberFormatter = new Intl.NumberFormat("en-US");
-
-const darkTileStyle: maplibregl.StyleSpecification = {
+const mapStyle: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
     cartoDark: {
@@ -78,21 +59,15 @@ const darkTileStyle: maplibregl.StyleSpecification = {
       type: "raster",
       source: "cartoDark",
       paint: {
-        "raster-opacity": 0.92,
-        "raster-contrast": 0.12,
-        "raster-saturation": -0.25,
+        "raster-opacity": 0.96,
+        "raster-contrast": 0.08,
+        "raster-saturation": -0.18,
       },
     },
   ],
 };
 
-export function SiteExplorer({
-  sites,
-  usingSampleData,
-}: {
-  sites: SiteCollection;
-  usingSampleData: boolean;
-}) {
+export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection; usingSampleData: boolean }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
   const [selectedSite, setSelectedSite] = useState<SiteFeature | null>(sites.features[0] ?? null);
@@ -102,22 +77,28 @@ export function SiteExplorer({
     minScore: 0,
     minArea: 0,
     assetType: "all",
+    query: "",
   });
 
-  const cities = useMemo(
-    () => Array.from(new Set(sites.features.map((site) => site.properties.city))).sort(),
-    [sites.features],
-  );
-
+  const cities = useMemo(() => Array.from(new Set(sites.features.map((site) => site.properties.city))).sort(), [sites.features]);
   const assetTypes = useMemo(
     () => Array.from(new Set(sites.features.map((site) => site.properties.asset_type))).sort(),
     [sites.features],
   );
 
   const filteredFeatures = useMemo(() => {
+    const query = filters.query.trim().toLowerCase();
+
     return sites.features.filter((site) => {
       const properties = site.properties;
+      const matchesQuery =
+        !query ||
+        properties.name.toLowerCase().includes(query) ||
+        properties.asset_type.toLowerCase().includes(query) ||
+        properties.city.toLowerCase().includes(query);
+
       return (
+        matchesQuery &&
         (filters.city === "all" || properties.city === filters.city) &&
         properties.suitability_score >= filters.minScore &&
         properties.usable_area_sqm >= filters.minArea &&
@@ -150,24 +131,13 @@ export function SiteExplorer({
   );
 
   const selectedId = selectedSite?.properties.id ?? "";
-  const topScore = filteredFeatures[0]?.properties.suitability_score ?? 0;
-  const highScoreCount = filteredFeatures.filter((site) => site.properties.suitability_score >= 85).length;
-  const lowRiskCount = filteredFeatures.filter((site) => site.properties.flood_risk_score <= 0.35).length;
-  const totalUsableArea = filteredFeatures.reduce((sum, site) => sum + site.properties.usable_area_sqm, 0);
+  const topSite = filteredFeatures[0] ?? null;
+  const totalArea = filteredFeatures.reduce((sum, site) => sum + site.properties.usable_area_sqm, 0);
   const totalCapacityKw = filteredFeatures.reduce(
     (sum, site) => sum + (site.properties.estimated_capacity_kw ?? site.properties.usable_area_sqm / 10),
     0,
   );
-  const annualGeneration = filteredFeatures.reduce(
-    (sum, site) =>
-      sum +
-      (site.properties.estimated_annual_generation_kwh ??
-        (site.properties.estimated_capacity_kw ?? site.properties.usable_area_sqm / 10) *
-          site.properties.annual_ghi_kwh_m2 *
-          0.78),
-    0,
-  );
-  const averageScore =
+  const avgScore =
     filteredFeatures.length > 0
       ? filteredFeatures.reduce((sum, site) => sum + site.properties.suitability_score, 0) / filteredFeatures.length
       : 0;
@@ -177,22 +147,18 @@ export function SiteExplorer({
       return;
     }
 
-    mapRef.current = new maplibregl.Map({
+    const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: darkTileStyle,
+      style: mapStyle,
       center: [76.9366, 8.5241],
       zoom: 11,
       attributionControl: { compact: true },
     });
 
-    mapRef.current.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-left");
+    mapRef.current = map;
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
 
-    mapRef.current.on("load", () => {
-      const map = mapRef.current;
-      if (!map) {
-        return;
-      }
-
+    map.on("load", () => {
       map.addSource("solar-sites", {
         type: "geojson",
         data: filteredCollection,
@@ -209,7 +175,7 @@ export function SiteExplorer({
         source: "solar-sites",
         paint: {
           "fill-color": scoreColorExpression(),
-          "fill-opacity": ["case", ["==", ["get", "id"], selectedId], 0.56, 0.26],
+          "fill-opacity": ["case", ["==", ["get", "id"], selectedId], 0.5, 0.22],
         },
       });
 
@@ -219,9 +185,8 @@ export function SiteExplorer({
         source: "solar-sites",
         paint: {
           "line-color": scoreColorExpression(),
-          "line-width": ["case", ["==", ["get", "id"], selectedId], 4, 2],
-          "line-opacity": 0.98,
-          "line-blur": 0.15,
+          "line-width": ["case", ["==", ["get", "id"], selectedId], 4, 2.2],
+          "line-opacity": 0.95,
         },
       });
 
@@ -230,10 +195,10 @@ export function SiteExplorer({
         type: "circle",
         source: "solar-site-points",
         paint: {
-          "circle-radius": ["case", ["==", ["get", "id"], selectedId], 18, 11],
+          "circle-radius": ["case", ["==", ["get", "id"], selectedId], 24, 15],
           "circle-color": scoreColorExpression(),
-          "circle-opacity": 0.28,
-          "circle-blur": 0.7,
+          "circle-opacity": 0.24,
+          "circle-blur": 0.8,
         },
       });
 
@@ -242,11 +207,11 @@ export function SiteExplorer({
         type: "circle",
         source: "solar-site-points",
         paint: {
-          "circle-radius": ["case", ["==", ["get", "id"], selectedId], 8, 5],
+          "circle-radius": ["case", ["==", ["get", "id"], selectedId], 8, 5.5],
           "circle-color": scoreColorExpression(),
           "circle-stroke-color": "#f8fafc",
-          "circle-stroke-width": ["case", ["==", ["get", "id"], selectedId], 2.4, 1.2],
-          "circle-opacity": 0.96,
+          "circle-stroke-width": ["case", ["==", ["get", "id"], selectedId], 2.8, 1.3],
+          "circle-opacity": 0.98,
         },
       });
 
@@ -257,42 +222,37 @@ export function SiteExplorer({
         layout: {
           "text-field": ["case", [">=", ["get", "suitability_score"], 85], ["get", "name"], ""],
           "text-size": 11,
-          "text-offset": [0, 1.15],
+          "text-offset": [0, 1.25],
           "text-anchor": "top",
-          "text-max-width": 12,
+          "text-max-width": 14,
         },
         paint: {
           "text-color": "#e5e7eb",
-          "text-halo-color": "#030712",
+          "text-halo-color": "#020617",
           "text-halo-width": 1.4,
         },
       });
 
-      const handleSelect = (event: MapLayerMouseEvent) => {
+      const selectFeature = (event: MapLayerMouseEvent) => {
         const feature = event.features?.[0] as SiteFeature | PointFeature | undefined;
-        if (!feature) {
-          return;
-        }
-
-        const site = filteredFeatures.find((candidate) => candidate.properties.id === feature.properties.id);
+        const site = filteredFeatures.find((candidate) => candidate.properties.id === feature?.properties.id);
         if (site) {
           setSelectedSite(site);
           flyToSite(map, site);
         }
       };
 
-      map.on("click", "solar-sites-fill", handleSelect);
-      map.on("click", "solar-site-points", handleSelect);
-
-      const handleHover = (event: MapLayerMouseEvent) => {
+      const hoverFeature = (event: MapLayerMouseEvent) => {
         const feature = event.features?.[0] as SiteFeature | PointFeature | undefined;
         const site = filteredFeatures.find((candidate) => candidate.properties.id === feature?.properties.id);
         setHoveredSite(site ?? null);
-        map.getCanvas().style.cursor = "pointer";
+        map.getCanvas().style.cursor = site ? "pointer" : "";
       };
 
-      map.on("mousemove", "solar-sites-fill", handleHover);
-      map.on("mousemove", "solar-site-points", handleHover);
+      map.on("click", "solar-sites-fill", selectFeature);
+      map.on("click", "solar-site-points", selectFeature);
+      map.on("mousemove", "solar-sites-fill", hoverFeature);
+      map.on("mousemove", "solar-site-points", hoverFeature);
       map.on("mouseleave", "solar-sites-fill", () => {
         setHoveredSite(null);
         map.getCanvas().style.cursor = "";
@@ -306,7 +266,7 @@ export function SiteExplorer({
     });
 
     return () => {
-      mapRef.current?.remove();
+      map.remove();
       mapRef.current = null;
     };
   }, []);
@@ -320,7 +280,7 @@ export function SiteExplorer({
     pointSource?.setData(pointCollection);
 
     if (map && map.isStyleLoaded()) {
-      setSelectionPaint(map, selectedId);
+      updateSelectionPaint(map, selectedId);
       fitToSites(map, filteredFeatures);
     }
 
@@ -334,47 +294,67 @@ export function SiteExplorer({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) {
-      return;
+    if (map && map.isStyleLoaded()) {
+      updateSelectionPaint(map, selectedId);
     }
-
-    setSelectionPaint(map, selectedId);
   }, [selectedId]);
 
   return (
-    <main className="sola-shell h-screen overflow-hidden bg-[#060a0f] text-slate-100">
-      <div className="grid h-screen grid-cols-[52px_1fr]">
-        <NavigationRail />
+    <main className="min-h-screen bg-[#06110d] text-[#e9f7ef]">
+      <div className="sola-grid-bg min-h-screen">
+        <header className="mx-auto flex w-full max-w-[1500px] items-center justify-between gap-4 px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="grid h-9 w-9 place-items-center rounded-full border border-emerald-300/25 bg-emerald-300/10 text-sm font-semibold text-emerald-200">
+              S
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.28em] text-emerald-200/70">Sola</p>
+              <h1 className="text-lg font-semibold text-white md:text-xl">Solar Site Intelligence</h1>
+            </div>
+          </div>
 
-        <section className="flex min-w-0 flex-col overflow-hidden">
-          <TopBar />
+          <nav className="hidden items-center gap-2 text-sm text-emerald-100/70 md:flex">
+            <span className="rounded-full border border-white/10 px-3 py-1.5">Thiruvananthapuram MVP</span>
+            <span className="rounded-full border border-white/10 px-3 py-1.5">PostGIS live</span>
+            <span className="rounded-full border border-white/10 px-3 py-1.5">MapLibre</span>
+          </nav>
+        </header>
 
-          <section className="grid grid-cols-6 gap-2 px-3 pb-2 pt-3">
-            <Kpi title="Total Surfaces Analyzed" value={formatNumber(filteredFeatures.length * 1338)} delta="+ 12.4% vs last 30d" />
-            <Kpi title="High Deployability Sites (>85%)" value={formatNumber(highScoreCount)} delta="+ 8.7% vs last 30d" />
-            <Kpi title="Estimated Annual Yield" value={`${formatNumber(Math.round(annualGeneration / 1000))} MWh`} delta="+ 15.3% vs last 30d" />
-            <Kpi title="Average Deployability Score" value={`${averageScore.toFixed(0)}%`} delta="+ 3.6% vs last 30d" />
-            <Kpi title="High-Confidence Sites" value={formatNumber(lowRiskCount)} delta="+ 6.4% vs last 30d" />
-            <Kpi title="Total Usable Area" value={`${formatCompact(totalUsableArea)} m²`} delta="+ 10.8% vs last 30d" />
+        <section className="mx-auto grid w-full max-w-[1500px] gap-4 px-5 pb-5 xl:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_minmax(300px,360px)]">
+          <section className="xl:col-span-3">
+            <div className="rounded-[28px] border border-white/10 bg-[#081610]/90 p-5 shadow-2xl shadow-black/30 md:p-6">
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
+                <div>
+                  <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs text-emerald-100">
+                    <CheckCircle2 size={14} />
+                    {filteredFeatures.length} viable candidate surfaces found
+                  </p>
+                  <h2 className="max-w-4xl text-4xl font-semibold leading-[1.02] text-white md:text-6xl">
+                    Find deployable solar rooftops before the site visit.
+                  </h2>
+                  <p className="mt-4 max-w-2xl text-base leading-7 text-emerald-50/66">
+                    A map-first workflow for EPCs and developers to compare usable area, solar exposure, grid proximity, and flood risk across commercial rooftops.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Metric label="Top Score" value={`${(topSite?.properties.suitability_score ?? 0).toFixed(1)}%`} />
+                  <Metric label="Avg Score" value={`${avgScore.toFixed(1)}%`} />
+                  <Metric label="Usable Area" value={`${formatCompact(totalArea)} m²`} />
+                  <Metric label="Est. DC" value={`${formatCompact(totalCapacityKw)} kW`} />
+                </div>
+              </div>
+            </div>
           </section>
 
-          <section className="grid min-h-0 flex-1 grid-cols-[220px_1fr_326px] grid-rows-[minmax(260px,1.8fr)_170px_150px] gap-2 px-3 pb-3">
-            <FilterPanel
+          <aside className="space-y-4 xl:max-h-[calc(100vh-312px)] xl:overflow-auto xl:pr-1">
+            <ControlPanel
               assetTypes={assetTypes}
               cities={cities}
               filters={filters}
               setFilters={setFilters}
             />
-
-            <MapPanel
-              hoveredSite={hoveredSite}
-              mapContainerRef={mapContainerRef}
-              onFit={() => fitToSites(mapRef.current, filteredFeatures)}
-            />
-
-            <SiteIntelPanel site={selectedSite} />
-
-            <RankedSitesTable
+            <RankedList
               features={filteredFeatures}
               selectedId={selectedId}
               onSelect={(site) => {
@@ -382,80 +362,27 @@ export function SiteExplorer({
                 flyToSite(mapRef.current, site);
               }}
             />
+          </aside>
 
-            <AggregationPanel features={filteredFeatures} />
-            <ScoreCompositionPanel />
-            <OverlayPanel />
-            <SystemHealthPanel usingSampleData={usingSampleData} />
+          <section className="min-h-[520px] overflow-hidden rounded-[28px] border border-white/10 bg-[#07140f] shadow-2xl shadow-black/30 xl:h-[calc(100vh-312px)]">
+            <MapWorkspace
+              hoveredSite={hoveredSite}
+              mapContainerRef={mapContainerRef}
+              onFit={() => fitToSites(mapRef.current, filteredFeatures)}
+            />
           </section>
+
+          <aside className="space-y-4 xl:max-h-[calc(100vh-312px)] xl:overflow-auto xl:pl-1">
+            <SiteDetail site={selectedSite} />
+            <PipelineCard features={filteredFeatures} usingSampleData={usingSampleData} />
+          </aside>
         </section>
       </div>
     </main>
   );
 }
 
-function NavigationRail() {
-  const items = [Search, Grid2X2, Zap, Bell, Settings, ShieldCheck];
-
-  return (
-    <aside className="flex flex-col items-center border-r border-white/10 bg-[#080d13] py-3">
-      <div className="mb-5 flex h-8 w-8 items-center justify-center rounded bg-orange-500/10 text-orange-400">
-        <Sparkles size={20} />
-      </div>
-      <div className="flex flex-1 flex-col gap-3">
-        {items.map((Icon, index) => (
-          <button
-            className={`flex h-9 w-9 items-center justify-center rounded text-slate-400 transition hover:bg-white/5 hover:text-slate-100 ${
-              index === 1 ? "border-l-2 border-indigo-400 bg-indigo-500/10 text-indigo-200" : ""
-            }`}
-            key={index}
-            type="button"
-          >
-            <Icon size={18} />
-          </button>
-        ))}
-      </div>
-      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 text-[11px]">AK</div>
-    </aside>
-  );
-}
-
-function TopBar() {
-  return (
-    <header className="flex h-10 items-center justify-between border-b border-white/10 bg-[#070b10] px-3">
-      <div className="flex items-center gap-2 text-sm">
-        <Grid2X2 size={15} className="text-slate-500" />
-        <span className="text-slate-400">Solar Intel</span>
-        <span className="text-slate-600">/</span>
-        <span className="font-medium text-slate-100">Urban Solar Deployability - Thiruvananthapuram</span>
-        <span className="text-amber-300">☆</span>
-      </div>
-
-      <div className="flex items-center gap-2 text-xs text-slate-400">
-        <span className="rounded border border-white/10 bg-black/30 px-3 py-1.5">2026-05-01 00:00 to 2026-05-31 23:59</span>
-        <button className="rounded border border-white/10 bg-black/30 p-1.5" type="button">
-          <Search size={14} />
-        </button>
-        <button className="rounded border border-white/10 bg-black/30 p-1.5" type="button">
-          <RefreshCw size={14} />
-        </button>
-        <span className="rounded border border-white/10 bg-black/30 px-2 py-1.5">5m</span>
-      </div>
-    </header>
-  );
-}
-
-function Kpi({ title, value, delta }: { title: string; value: string; delta: string }) {
-  return (
-    <article className="sola-panel flex min-h-[96px] flex-col items-center justify-center px-3 text-center">
-      <p className="text-xs font-medium text-slate-300">{title}</p>
-      <p className="mt-2 text-[28px] font-semibold leading-none text-white">{value}</p>
-      <p className="mt-2 text-xs text-emerald-400">↑ {delta}</p>
-    </article>
-  );
-}
-
-function FilterPanel({
+function ControlPanel({
   assetTypes,
   cities,
   filters,
@@ -467,80 +394,94 @@ function FilterPanel({
   setFilters: React.Dispatch<React.SetStateAction<Filters>>;
 }) {
   return (
-    <section className="sola-panel col-start-1 row-start-1 min-h-0 p-3">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-slate-100">Filters</h2>
+    <section className="rounded-[24px] border border-white/10 bg-[#081610]/85 p-4">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-medium text-white">
+          <SlidersHorizontal size={16} />
+          Filters
+        </div>
         <button
-          className="text-xs text-indigo-300"
-          onClick={() => setFilters((current) => ({ ...current, minScore: 0, minArea: 0, assetType: "all" }))}
+          className="text-xs text-emerald-200/70 hover:text-emerald-100"
+          onClick={() => setFilters((current) => ({ ...current, minScore: 0, minArea: 0, assetType: "all", query: "" }))}
           type="button"
         >
-          Clear all
+          Reset
         </button>
       </div>
 
-      <div className="space-y-2 text-xs">
-        <SelectControl
-          label="Region"
-          value={filters.city}
+      <label className="relative block">
+        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-emerald-100/40" size={15} />
+        <input
+          className="h-11 w-full rounded-2xl border border-white/10 bg-black/20 pl-9 pr-3 text-sm text-white outline-none placeholder:text-emerald-100/35 focus:border-emerald-300/40"
+          onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))}
+          placeholder="Search sites"
+          value={filters.query}
+        />
+      </label>
+
+      <div className="mt-4 space-y-3">
+        <SelectField
+          label="City"
           onChange={(value) => setFilters((current) => ({ ...current, city: value }))}
-          options={[["all", "All regions"], ...cities.map((city) => [city, city] as [string, string])]}
+          options={[["all", "All cities"], ...cities.map((city) => [city, city] as [string, string])]}
+          value={filters.city}
         />
-        <SelectControl
-          label="Surface Type"
-          value={filters.assetType}
+        <SelectField
+          label="Asset type"
           onChange={(value) => setFilters((current) => ({ ...current, assetType: value }))}
-          options={[["all", "All"], ...assetTypes.map((type) => [type, type.replaceAll("_", " ")] as [string, string])]}
+          options={[["all", "All types"], ...assetTypes.map((type) => [type, type.replaceAll("_", " ")] as [string, string])]}
+          value={filters.assetType}
         />
-        <SelectControl
-          label="Deployability Score"
-          value={`${filters.minScore}`}
+        <SelectField
+          label="Minimum score"
           onChange={(value) => setFilters((current) => ({ ...current, minScore: Number(value) }))}
           options={[
-            ["0", "All"],
+            ["0", "Any score"],
             ["75", "75%+"],
             ["85", "85%+"],
             ["90", "90%+"],
           ]}
+          value={`${filters.minScore}`}
         />
-        <SelectControl
-          label="Usable Area"
-          value={`${filters.minArea}`}
+        <SelectField
+          label="Minimum area"
           onChange={(value) => setFilters((current) => ({ ...current, minArea: Number(value) }))}
           options={[
-            ["0", "All"],
+            ["0", "Any area"],
             ["8000", "8,000 m²+"],
             ["10000", "10,000 m²+"],
             ["20000", "20,000 m²+"],
           ]}
+          value={`${filters.minArea}`}
         />
       </div>
 
-      <button className="mt-3 h-8 w-full rounded bg-indigo-500 text-xs font-semibold text-white shadow-lg shadow-indigo-950/40" type="button">
-        Apply Filters
-      </button>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <QuickButton label="High score" onClick={() => setFilters((current) => ({ ...current, minScore: 85 }))} />
+        <QuickButton label="Large roof" onClick={() => setFilters((current) => ({ ...current, minArea: 10000 }))} />
+      </div>
     </section>
   );
 }
 
-function SelectControl({
+function SelectField({
   label,
+  onChange,
   options,
   value,
-  onChange,
 }: {
   label: string;
+  onChange: (value: string) => void;
   options: Array<[string, string]>;
   value: string;
-  onChange: (value: string) => void;
 }) {
   return (
-    <label className="grid grid-cols-[1fr_1.18fr] items-center gap-2 text-slate-300">
-      <span>{label}</span>
+    <label className="block">
+      <span className="text-xs text-emerald-100/50">{label}</span>
       <select
-        className="h-8 rounded border border-white/10 bg-[#0b1118] px-2 text-xs text-slate-100 outline-none"
-        value={value}
+        className="mt-1 h-10 w-full rounded-2xl border border-white/10 bg-[#0b1b14] px-3 text-sm text-emerald-50 outline-none focus:border-emerald-300/40"
         onChange={(event) => onChange(event.target.value)}
+        value={value}
       >
         {options.map(([optionValue, labelText]) => (
           <option key={optionValue} value={optionValue}>
@@ -552,7 +493,64 @@ function SelectControl({
   );
 }
 
-function MapPanel({
+function QuickButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      className="h-10 rounded-2xl border border-emerald-300/20 bg-emerald-300/8 text-sm text-emerald-100 transition hover:border-emerald-200/50 hover:bg-emerald-300/14"
+      onClick={onClick}
+      type="button"
+    >
+      {label}
+    </button>
+  );
+}
+
+function RankedList({
+  features,
+  onSelect,
+  selectedId,
+}: {
+  features: SiteFeature[];
+  onSelect: (site: SiteFeature) => void;
+  selectedId: string;
+}) {
+  return (
+    <section className="rounded-[24px] border border-white/10 bg-[#081610]/85 p-3">
+      <div className="mb-3 flex items-center justify-between px-1">
+        <h3 className="text-sm font-medium text-white">Ranked candidates</h3>
+        <span className="text-xs text-emerald-100/50">{features.length} sites</span>
+      </div>
+      <div className="space-y-2">
+        {features.slice(0, 8).map((site, index) => (
+          <button
+            className={`w-full rounded-2xl border p-3 text-left transition ${
+              selectedId === site.properties.id
+                ? "border-emerald-300/55 bg-emerald-300/12"
+                : "border-white/8 bg-black/14 hover:border-emerald-300/30"
+            }`}
+            key={site.properties.id}
+            onClick={() => onSelect(site)}
+            type="button"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.14em] text-emerald-100/40">Rank {index + 1}</p>
+                <h4 className="mt-1 text-sm font-medium leading-5 text-white">{site.properties.name}</h4>
+              </div>
+              <ScoreChip value={site.properties.suitability_score} />
+            </div>
+            <div className="mt-3 flex items-center justify-between text-xs text-emerald-100/55">
+              <span>{formatCompact(site.properties.usable_area_sqm)} m²</span>
+              <span>{site.properties.grid_distance_km.toFixed(1)} km grid</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function MapWorkspace({
   hoveredSite,
   mapContainerRef,
   onFit,
@@ -562,399 +560,169 @@ function MapPanel({
   onFit: () => void;
 }) {
   return (
-    <section className="sola-panel relative col-start-2 row-start-1 min-h-0 overflow-hidden">
-      <div className="absolute left-3 top-2 z-10 text-xs font-semibold text-slate-100">Deployability Heatmap</div>
-      <div className="absolute right-3 top-3 z-10 flex h-8 w-[220px] items-center gap-2 rounded border border-white/10 bg-[#0a1118]/90 px-2 text-xs text-slate-500">
-        <Search size={14} />
-        Search location
-      </div>
-      <div className="absolute left-3 top-10 z-10 flex flex-col gap-2">
-        <button className="map-tool" onClick={onFit} type="button">＋</button>
-        <button className="map-tool" type="button">－</button>
-        <button className="map-tool" type="button"><Layers size={15} /></button>
-      </div>
+    <div className="relative h-full min-h-[520px]">
       <div ref={mapContainerRef} className="absolute inset-0" />
-      <div className="absolute bottom-4 left-4 z-10 w-[220px] rounded border border-white/10 bg-[#070b10]/90 p-3 shadow-2xl">
-        <p className="mb-2 text-xs text-slate-200">Deployability Score</p>
-        <div className="h-2 rounded bg-gradient-to-r from-red-500 via-amber-400 via-60% to-emerald-400" />
-        <div className="mt-2 flex justify-between text-[10px] text-slate-400">
-          <span>0%</span>
-          <span>50%</span>
-          <span>75%</span>
-          <span>100%</span>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,transparent_0%,rgba(6,17,13,0.28)_72%,rgba(6,17,13,0.66)_100%)]" />
+
+      <div className="absolute left-4 top-4 z-10 rounded-2xl border border-white/10 bg-[#07140f]/86 px-4 py-3 shadow-2xl backdrop-blur">
+        <p className="text-xs uppercase tracking-[0.2em] text-emerald-100/45">Map view</p>
+        <h3 className="mt-1 text-sm font-medium text-white">Deployability surface</h3>
+      </div>
+
+      <button
+        className="absolute right-4 top-4 z-10 inline-flex h-10 items-center gap-2 rounded-2xl border border-white/10 bg-[#07140f]/86 px-4 text-sm text-emerald-50 backdrop-blur transition hover:border-emerald-300/35"
+        onClick={onFit}
+        type="button"
+      >
+        <MapPin size={15} />
+        Fit city
+      </button>
+
+      <div className="absolute bottom-4 left-4 z-10 w-[240px] rounded-2xl border border-white/10 bg-[#07140f]/90 p-4 shadow-2xl backdrop-blur">
+        <div className="mb-3 flex items-center justify-between">
+          <span className="text-sm font-medium text-white">Score legend</span>
+          <Gauge size={15} className="text-emerald-200/70" />
+        </div>
+        <div className="h-2 rounded-full bg-gradient-to-r from-red-400 via-amber-300 via-lime-300 to-emerald-300" />
+        <div className="mt-2 flex justify-between text-[11px] text-emerald-100/45">
+          <span>Review</span>
+          <span>Strong</span>
+          <span>Excellent</span>
         </div>
       </div>
+
       {hoveredSite ? (
-        <div className="absolute right-20 top-[36%] z-10 w-[220px] rounded border border-white/10 bg-[#080d13]/95 p-3 text-xs shadow-2xl">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="font-semibold text-slate-100">{hoveredSite.properties.name}</span>
-            <ScorePill value={hoveredSite.properties.suitability_score} />
+        <div className="absolute bottom-4 right-4 z-10 w-[280px] rounded-2xl border border-white/10 bg-[#07140f]/92 p-4 shadow-2xl backdrop-blur">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs text-emerald-100/50">Hovered site</p>
+              <h4 className="mt-1 text-sm font-medium text-white">{hoveredSite.properties.name}</h4>
+            </div>
+            <ScoreChip value={hoveredSite.properties.suitability_score} />
           </div>
-          <InfoRow label="Usable Area" value={`${formatNumber(hoveredSite.properties.usable_area_sqm)} m²`} />
-          <InfoRow label="Est. Capacity" value={`${formatNumber(Math.round(hoveredSite.properties.estimated_capacity_kw ?? 0))} kW`} />
-          <InfoRow label="Flood Resilience" value={`${Math.round((1 - hoveredSite.properties.flood_risk_score) * 100)}%`} />
-          <InfoRow label="Grid Distance" value={`${hoveredSite.properties.grid_distance_km.toFixed(1)} km`} />
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-emerald-50/70">
+            <InfoTile label="Area" value={`${formatCompact(hoveredSite.properties.usable_area_sqm)} m²`} />
+            <InfoTile label="Grid" value={`${hoveredSite.properties.grid_distance_km.toFixed(1)} km`} />
+          </div>
         </div>
       ) : null}
-    </section>
+    </div>
   );
 }
 
-function SiteIntelPanel({ site }: { site: SiteFeature | null }) {
+function SiteDetail({ site }: { site: SiteFeature | null }) {
   if (!site) {
     return (
-      <section className="sola-panel col-start-3 row-start-1 min-h-0 p-3">
-        <h2 className="text-xs font-semibold text-slate-100">Selected Site Intelligence</h2>
-        <p className="mt-4 text-sm text-slate-500">Select a marker or ranked site.</p>
+      <section className="rounded-[24px] border border-white/10 bg-[#081610]/85 p-4">
+        <p className="text-sm text-emerald-100/60">Select a candidate to inspect viability.</p>
       </section>
     );
   }
 
   const properties = site.properties;
-  const capacityScore = Math.min(Math.round((properties.usable_area_sqm / 20000) * 100), 96);
-  const solarScore = Math.min(Math.round(((properties.annual_ghi_kwh_m2 - 1300) / 800) * 100), 96);
-  const floodScore = Math.round((1 - properties.flood_risk_score) * 100);
-  const gridScore = Math.round((1 - Math.min(properties.grid_distance_km / 10, 1)) * 100);
-  const confidence = Math.round((capacityScore + solarScore + floodScore + gridScore) / 4);
+  const capacityKw = properties.estimated_capacity_kw ?? properties.usable_area_sqm / 10;
+  const annualGeneration = properties.estimated_annual_generation_kwh ?? capacityKw * properties.annual_ghi_kwh_m2 * 0.78;
+  const floodSafety = Math.round((1 - properties.flood_risk_score) * 100);
+  const gridAccess = Math.round((1 - Math.min(properties.grid_distance_km / 10, 1)) * 100);
 
   return (
-    <section className="sola-panel col-start-3 row-start-1 min-h-0 overflow-hidden">
-      <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
-        <h2 className="text-xs font-semibold text-slate-100">Selected Site Intelligence</h2>
-        <Share2 size={14} className="text-slate-500" />
-      </div>
-      <div className="p-3">
-        <p className="text-xs text-slate-400">{properties.name}</p>
-        <div className="mt-3">
-          <p className="text-xs text-slate-300">Overall Deployability</p>
-          <div className="mt-1 flex items-end gap-1">
-            <span className="text-4xl font-bold text-emerald-400">{properties.suitability_score.toFixed(0)}</span>
-            <span className="mb-1 text-xl text-emerald-400">%</span>
-          </div>
-          <Progress value={properties.suitability_score} />
+    <section className="rounded-[24px] border border-white/10 bg-[#081610]/85 p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.18em] text-emerald-100/45">Selected site</p>
+          <h3 className="mt-2 text-xl font-semibold leading-tight text-white">{properties.name}</h3>
+          <p className="mt-2 text-sm text-emerald-100/55">{properties.asset_type.replaceAll("_", " ")}</p>
         </div>
+        <ScoreChip value={properties.suitability_score} large />
+      </div>
 
-        <div className="mt-4 space-y-3">
-          <Breakdown label="Surface Capacity" value={capacityScore} />
-          <Breakdown label="Solar Exposure" value={solarScore} />
-          <Breakdown label="Flood Resilience" value={floodScore} warning={floodScore < 70} />
-          <Breakdown label="Grid Accessibility" value={gridScore} warning={gridScore < 70} />
-          <Breakdown label="Data Confidence" value={confidence} />
-        </div>
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        <InfoTile label="Usable area" value={`${formatCompact(properties.usable_area_sqm)} m²`} />
+        <InfoTile label="Capacity" value={`${formatCompact(capacityKw)} kW`} />
+        <InfoTile label="Annual yield" value={`${formatCompact(annualGeneration / 1000)} MWh`} />
+        <InfoTile label="Grid distance" value={`${properties.grid_distance_km.toFixed(1)} km`} />
+      </div>
 
-        <button className="mt-4 h-8 w-full rounded bg-indigo-500 text-xs font-semibold text-white" type="button">
-          View Full Site Analysis
-        </button>
+      <div className="mt-5 space-y-3">
+        <ScoreBar label="Solar exposure" value={Math.min(((properties.annual_ghi_kwh_m2 - 1300) / 800) * 100, 96)} />
+        <ScoreBar label="Flood safety" value={floodSafety} warning={floodSafety < 70} />
+        <ScoreBar label="Grid accessibility" value={gridAccess} warning={gridAccess < 70} />
+      </div>
+
+      <p className="mt-5 rounded-2xl border border-white/10 bg-black/16 p-3 text-sm leading-6 text-emerald-50/68">
+        {properties.notes ?? "No notes provided."}
+      </p>
+    </section>
+  );
+}
+
+function PipelineCard({ features, usingSampleData }: { features: SiteFeature[]; usingSampleData: boolean }) {
+  return (
+    <section className="rounded-[24px] border border-white/10 bg-[#081610]/85 p-4">
+      <h3 className="text-sm font-medium text-white">Pipeline health</h3>
+      <div className="mt-4 space-y-3 text-sm">
+        <HealthRow label="API source" value={usingSampleData ? "Sample fallback" : "Live PostGIS"} ok={!usingSampleData} />
+        <HealthRow label="Candidate count" value={`${features.length} active`} ok />
+        <HealthRow label="Map tiles" value="Open provider" ok />
       </div>
     </section>
   );
 }
 
-function RankedSitesTable({
-  features,
-  selectedId,
-  onSelect,
-}: {
-  features: SiteFeature[];
-  selectedId: string;
-  onSelect: (site: SiteFeature) => void;
-}) {
+function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <section className="sola-panel col-span-2 col-start-1 row-start-2 min-h-0 overflow-hidden">
-      <PanelTitle title="Ranked Sites" />
-      <div className="px-3 pb-3">
-        <table className="w-full table-fixed text-xs">
-          <thead className="text-left text-slate-400">
-            <tr className="border-b border-white/10">
-              <th className="w-10 py-2">Rank</th>
-              <th>Site</th>
-              <th className="w-24">Score</th>
-              <th className="w-24">Area</th>
-              <th className="w-24">Grid</th>
-            </tr>
-          </thead>
-          <tbody>
-            {features.slice(0, 8).map((site, index) => (
-              <tr
-                className={`cursor-pointer border-b border-white/5 text-slate-200 hover:bg-white/5 ${
-                  selectedId === site.properties.id ? "bg-emerald-500/8" : ""
-                }`}
-                key={site.properties.id}
-                onClick={() => onSelect(site)}
-              >
-                <td className="py-1.5 text-slate-400">{index + 1}</td>
-                <td className="truncate pr-3">{site.properties.name}</td>
-                <td><ScoreBarMini value={site.properties.suitability_score} /></td>
-                <td>{formatCompact(site.properties.usable_area_sqm)} m²</td>
-                <td>{site.properties.grid_distance_km.toFixed(1)} km</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <article className="rounded-3xl border border-white/10 bg-black/16 p-4">
+      <p className="text-xs text-emerald-100/50">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+    </article>
   );
 }
 
-function AggregationPanel({ features }: { features: SiteFeature[] }) {
-  const bars = features.slice(0, 5).map((site) => ({
-    label: site.properties.name.split(" ").slice(0, 2).join(" "),
-    value: site.properties.estimated_annual_generation_kwh ?? 0,
-  }));
-  const max = Math.max(...bars.map((bar) => bar.value), 1);
-
+function InfoTile({ label, value }: { label: string; value: string }) {
   return (
-    <section className="sola-panel col-start-3 row-start-2 min-h-0 p-3">
-      <PanelTitle title="Aggregation Clusters" flush />
-      <div className="mt-4 flex h-[130px] items-end gap-3">
-        {bars.map((bar, index) => (
-          <div className="flex flex-1 flex-col items-center gap-2" key={bar.label}>
-            <div
-              className="w-full rounded-t bg-gradient-to-t from-indigo-600 to-emerald-400"
-              style={{ height: `${Math.max((bar.value / max) * 100, 12)}%` }}
-            />
-            <span className="max-w-[58px] truncate text-[10px] text-slate-400">{bar.label}</span>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function ScoreCompositionPanel() {
-  return (
-    <section className="sola-panel col-start-1 row-start-3 min-h-0 p-3">
-      <PanelTitle title="Deployability Score Composition" flush />
-      <div className="mt-4 grid grid-cols-[112px_1fr] items-center gap-3">
-        <div className="donut-chart grid h-28 w-28 place-items-center rounded-full">
-          <div className="grid h-14 w-14 place-items-center rounded-full bg-[#080d13] text-center text-[10px] text-slate-200">
-            Score<br />Mix
-          </div>
-        </div>
-        <div className="space-y-2 text-xs">
-          <LegendLine color="#22c55e" label="Surface Capacity" value="28%" />
-          <LegendLine color="#eab308" label="Solar Exposure" value="24%" />
-          <LegendLine color="#3b82f6" label="Flood Resilience" value="15%" />
-          <LegendLine color="#a855f7" label="Grid Accessibility" value="18%" />
-          <LegendLine color="#ef4444" label="Urban Compatibility" value="10%" />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function OverlayPanel() {
-  return (
-    <section className="sola-panel col-start-2 row-start-3 min-h-0 p-3">
-      <PanelTitle title="Infrastructure Overlay" flush />
-      <div className="mt-3 space-y-2 text-xs text-slate-300">
-        <ToggleRow label="Substations" enabled />
-        <ToggleRow label="Transmission Lines" enabled color="yellow" />
-        <ToggleRow label="Industrial Zones" enabled color="purple" />
-        <ToggleRow label="Major Roads" enabled color="green" />
-      </div>
-      <div className="mt-5 border-t border-white/10 pt-4">
-        <p className="text-xs text-slate-400">Average Grid Distance</p>
-        <div className="mt-2 flex items-end justify-between">
-          <span className="text-3xl font-semibold text-white">2.9 km</span>
-          <span className="sparkline" />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function YieldTrendPanel() {
-  const points = [18, 22, 28, 31, 35, 39, 43, 41, 48, 52, 57, 61, 58, 64, 71, 77, 51];
-  return (
-    <section className="sola-panel col-span-2 min-h-0 p-3">
-      <PanelTitle title="Estimated Annual Yield Over Time (GWh)" flush />
-      <MiniLine points={points} />
-    </section>
-  );
-}
-
-function DistributionPanel({ features }: { features: SiteFeature[] }) {
-  const bins = [0, 0, 0, 0, 0, 0];
-  features.forEach((site) => {
-    const score = site.properties.suitability_score;
-    const index = score >= 90 ? 5 : score >= 85 ? 4 : score >= 80 ? 3 : score >= 75 ? 2 : score >= 70 ? 1 : 0;
-    bins[index] += 1;
-  });
-  const max = Math.max(...bins, 1);
-
-  return (
-    <section className="sola-panel col-start-3 row-start-3 min-h-0 p-3">
-      <PanelTitle title="Deployability Score Distribution" flush />
-      <div className="mt-4 flex h-[94px] items-end gap-2">
-        {bins.map((value, index) => (
-          <div className="flex flex-1 flex-col items-center gap-1" key={index}>
-            <div
-              className="w-full rounded-t"
-              style={{
-                height: `${Math.max((value / max) * 100, 8)}%`,
-                background: `linear-gradient(to top, ${index < 2 ? "#ef4444" : index < 4 ? "#eab308" : "#22c55e"}, #86efac)`,
-              }}
-            />
-            <span className="text-[10px] text-slate-500">{index * 10 + 50}</span>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function AlertsPanel() {
-  const alerts = [
-    ["High Flood Risk Detected", "Medical College", "High"],
-    ["Low Confidence Score", "TVM-154", "Medium"],
-    ["Grid Distance High", "Lulu Attingal", "Medium"],
-  ];
-
-  return (
-    <section className="sola-panel min-h-0 p-3">
-      <PanelTitle title="Alerts" flush />
-      <div className="mt-3 space-y-2">
-        {alerts.map(([title, subtitle, severity]) => (
-          <div className="grid grid-cols-[18px_1fr_auto] items-center gap-2 text-xs" key={title}>
-            <AlertTriangle size={14} className={severity === "High" ? "text-red-400" : "text-amber-400"} />
-            <div>
-              <p className="text-slate-200">{title}</p>
-              <p className="text-[10px] text-slate-500">{subtitle}</p>
-            </div>
-            <span className="rounded bg-white/5 px-2 py-1 text-[10px] text-slate-300">{severity}</span>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function SystemHealthPanel({ usingSampleData }: { usingSampleData: boolean }) {
-  return (
-    <section className="sola-panel min-h-0 p-3">
-      <PanelTitle title="System Health" flush />
-      <div className="mt-3 space-y-2 text-xs">
-        <HealthRow label="PostGIS Database" status="Healthy" />
-        <HealthRow label="Tile Server" status="Healthy" />
-        <HealthRow label="Data Ingestion" status={usingSampleData ? "Sample" : "Healthy"} warning={usingSampleData} />
-        <HealthRow label="API Gateway" status="Healthy" />
-      </div>
-    </section>
-  );
-}
-
-function PanelTitle({ title, flush = false }: { title: string; flush?: boolean }) {
-  return <h2 className={`text-xs font-semibold text-slate-100 ${flush ? "" : "px-3 py-2"}`}>{title}</h2>;
-}
-
-function ScorePill({ value }: { value: number }) {
-  return <span className="rounded bg-emerald-500/90 px-2 py-0.5 text-[10px] font-semibold text-[#06100b]">{value.toFixed(0)}%</span>;
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="mt-1 flex justify-between gap-3 text-slate-300">
-      <span>{label}</span>
-      <span className="font-medium text-slate-100">{value}</span>
+    <div className="rounded-2xl border border-white/10 bg-black/16 p-3">
+      <p className="text-xs text-emerald-100/45">{label}</p>
+      <p className="mt-1 text-sm font-medium text-white">{value}</p>
     </div>
   );
 }
 
-function Progress({ value }: { value: number }) {
+function ScoreChip({ large = false, value }: { large?: boolean; value: number }) {
   return (
-    <div className="mt-3 h-3 rounded bg-slate-800">
-      <div className="h-3 rounded bg-gradient-to-r from-emerald-500 to-lime-400" style={{ width: `${value}%` }} />
-    </div>
+    <span
+      className={`inline-flex shrink-0 items-center justify-center rounded-full border border-emerald-200/30 bg-emerald-300/15 font-semibold text-emerald-100 ${
+        large ? "h-16 w-16 text-xl" : "h-10 min-w-14 px-3 text-sm"
+      }`}
+    >
+      {value.toFixed(large ? 0 : 1)}
+    </span>
   );
 }
 
-function Breakdown({ label, value, warning = false }: { label: string; value: number; warning?: boolean }) {
+function ScoreBar({ label, value, warning = false }: { label: string; value: number; warning?: boolean }) {
   return (
-    <div className="grid grid-cols-[1fr_112px_34px] items-center gap-2 text-xs">
-      <span className="truncate text-slate-300">{label}</span>
-      <div className="h-2 rounded bg-slate-800">
-        <div className={`h-2 rounded ${warning ? "bg-amber-400" : "bg-emerald-400"}`} style={{ width: `${value}%` }} />
+    <div>
+      <div className="mb-1 flex items-center justify-between text-xs">
+        <span className="text-emerald-100/55">{label}</span>
+        <span className={warning ? "text-amber-200" : "text-emerald-200"}>{Math.round(value)}%</span>
       </div>
-      <span className={warning ? "text-amber-300" : "text-emerald-300"}>{value}%</span>
-    </div>
-  );
-}
-
-function ScoreBarMini({ value }: { value: number }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="w-8 rounded bg-emerald-400/90 text-center text-[10px] font-semibold text-[#06100b]">{value.toFixed(0)}%</span>
-      <div className="h-2 flex-1 rounded bg-slate-800">
-        <div className="h-2 rounded bg-emerald-400" style={{ width: `${value}%` }} />
+      <div className="h-2 rounded-full bg-white/10">
+        <div
+          className={`h-2 rounded-full ${warning ? "bg-amber-300" : "bg-emerald-300"}`}
+          style={{ width: `${Math.max(0, Math.min(value, 100))}%` }}
+        />
       </div>
     </div>
   );
 }
 
-function LegendLine({ color, label, value }: { color: string; label: string; value: string }) {
+function HealthRow({ label, ok, value }: { label: string; ok: boolean; value: string }) {
   return (
-    <div className="grid grid-cols-[10px_1fr_auto] items-center gap-2">
-      <span className="h-2.5 w-2.5 rounded-sm" style={{ background: color }} />
-      <span className="truncate text-slate-300">{label}</span>
-      <span className="text-slate-400">{value}</span>
+    <div className="flex items-center justify-between">
+      <span className="text-emerald-100/55">{label}</span>
+      <span className={ok ? "text-emerald-200" : "text-amber-200"}>{value}</span>
     </div>
   );
-}
-
-function ToggleRow({ label, enabled, color = "blue" }: { label: string; enabled: boolean; color?: "blue" | "yellow" | "purple" | "green" }) {
-  const colorMap = {
-    blue: "accent-indigo-400",
-    yellow: "accent-yellow-400",
-    purple: "accent-purple-400",
-    green: "accent-emerald-400",
-  };
-
-  return (
-    <label className="flex items-center justify-between">
-      <span>{label}</span>
-      <input checked={enabled} className={colorMap[color]} readOnly type="checkbox" />
-    </label>
-  );
-}
-
-function HealthRow({ label, status, warning = false }: { label: string; status: string; warning?: boolean }) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-slate-400">{label}</span>
-      <span className={warning ? "text-amber-300" : "text-emerald-400"}>{status}</span>
-    </div>
-  );
-}
-
-function MiniLine({ points }: { points: number[] }) {
-  const max = Math.max(...points);
-  const min = Math.min(...points);
-  const coords = points
-    .map((point, index) => {
-      const x = (index / (points.length - 1)) * 100;
-      const y = 100 - ((point - min) / (max - min || 1)) * 80 - 10;
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  return (
-    <svg className="mt-2 h-[104px] w-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-      <polyline fill="none" points={coords} stroke="#22c55e" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-    </svg>
-  );
-}
-
-function setSelectionPaint(map: Map, selectedId: string) {
-  if (!map.getLayer("solar-sites-fill")) {
-    return;
-  }
-
-  map.setPaintProperty("solar-sites-fill", "fill-opacity", ["case", ["==", ["get", "id"], selectedId], 0.56, 0.26]);
-  map.setPaintProperty("solar-sites-line", "line-width", ["case", ["==", ["get", "id"], selectedId], 4, 2]);
-  map.setPaintProperty("solar-site-glow", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 18, 11]);
-  map.setPaintProperty("solar-site-points", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 8, 5]);
-  map.setPaintProperty("solar-site-points", "circle-stroke-width", ["case", ["==", ["get", "id"], selectedId], 2.4, 1.2]);
 }
 
 function scoreColorExpression() {
@@ -963,39 +731,26 @@ function scoreColorExpression() {
     ["linear"],
     ["get", "suitability_score"],
     70,
-    "#ef4444",
+    "#f87171",
     78,
-    "#f59e0b",
+    "#fbbf24",
     84,
-    "#a3e635",
+    "#bef264",
     90,
-    "#22c55e",
+    "#34d399",
   ] as maplibregl.ExpressionSpecification;
 }
 
-function getPolygonCenter(feature: SiteFeature): [number, number] {
-  const coordinates = feature.geometry.coordinates.flat();
-  const total = coordinates.reduce(
-    (sum, coordinate) => [sum[0] + coordinate[0], sum[1] + coordinate[1]],
-    [0, 0],
-  );
-  return [total[0] / coordinates.length, total[1] / coordinates.length];
-}
-
-function formatNumber(value: number) {
-  return numberFormatter.format(value);
-}
-
-function formatCompact(value: number) {
-  if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(2)}M`;
+function updateSelectionPaint(map: Map, selectedId: string) {
+  if (!map.getLayer("solar-sites-fill")) {
+    return;
   }
 
-  if (value >= 1_000) {
-    return `${(value / 1_000).toFixed(1)}K`;
-  }
-
-  return formatNumber(Math.round(value));
+  map.setPaintProperty("solar-sites-fill", "fill-opacity", ["case", ["==", ["get", "id"], selectedId], 0.5, 0.22]);
+  map.setPaintProperty("solar-sites-line", "line-width", ["case", ["==", ["get", "id"], selectedId], 4, 2.2]);
+  map.setPaintProperty("solar-site-glow", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 24, 15]);
+  map.setPaintProperty("solar-site-points", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 8, 5.5]);
+  map.setPaintProperty("solar-site-points", "circle-stroke-width", ["case", ["==", ["get", "id"], selectedId], 2.8, 1.3]);
 }
 
 function fitToSites(map: Map | null, features: SiteFeature[]) {
@@ -1009,8 +764,8 @@ function fitToSites(map: Map | null, features: SiteFeature[]) {
   }
 
   map.fitBounds(bounds, {
-    padding: { top: 58, right: 52, bottom: 52, left: 52 },
-    maxZoom: 13.6,
+    padding: { top: 76, right: 76, bottom: 76, left: 76 },
+    maxZoom: 13.5,
     duration: 800,
   });
 }
@@ -1026,9 +781,9 @@ function flyToSite(map: Map | null, feature: SiteFeature) {
   }
 
   map.fitBounds(bounds, {
-    padding: { top: 150, right: 150, bottom: 150, left: 150 },
+    padding: { top: 140, right: 140, bottom: 140, left: 140 },
     maxZoom: 16,
-    duration: 650,
+    duration: 700,
   });
 }
 
@@ -1043,4 +798,29 @@ function getFeatureBounds(features: SiteFeature[]) {
   const bounds = new maplibregl.LngLatBounds(coordinates[0], coordinates[0]);
   coordinates.forEach((coordinate) => bounds.extend(coordinate));
   return bounds;
+}
+
+function getPolygonCenter(feature: SiteFeature): [number, number] {
+  const coordinates = feature.geometry.coordinates.flat();
+  const total = coordinates.reduce(
+    (sum, coordinate) => [sum[0] + coordinate[0], sum[1] + coordinate[1]],
+    [0, 0],
+  );
+  return [total[0] / coordinates.length, total[1] / coordinates.length];
+}
+
+function formatNumber(value: number) {
+  return numberFormatter.format(Math.round(value));
+}
+
+function formatCompact(value: number) {
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(2)}M`;
+  }
+
+  if (value >= 1_000) {
+    return `${(value / 1_000).toFixed(value >= 10_000 ? 1 : 2)}K`;
+  }
+
+  return formatNumber(value);
 }
