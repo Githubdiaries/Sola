@@ -1,170 +1,149 @@
-# Sola ☀️
+# Sola
 
-**GIS-powered solar site discovery for utility-scale virtual aggregation — powering renewable data centres, one optimal spot at a time.**
+Sola is a full-stack solar site intelligence platform for small and mid-size solar EPCs, developers, and commercial rooftop sales teams.
 
-Sola is an open-source B2B geospatial platform that identifies and ranks the best locations for solar PV installations within a city. It focuses on maximum usable surface area (rooftops, parking canopies, industrial land, brownfields, and suitable open spaces) after accounting for setbacks, shading, structural viability, flood/damp risk, land-use restrictions, and grid proximity.
+The product helps teams find rooftops and land parcels with the most usable solar area and strongest project viability, then rank them quickly enough to turn GIS data into qualified pipeline.
 
-### MVP
+## Customer Value
 
-<img width="1536" height="1024" alt="Sola AI v.0" src="https://github.com/user-attachments/assets/f1ece94d-e9e8-4144-a5f3-946aefc817e8" />
-" />
+- Find high-potential commercial rooftops and sites without manual map trawling.
+- Prioritize leads by usable area, irradiance, flood risk, and grid proximity.
+- Return ranked polygons as GeoJSON for map workflows and downstream analysis.
+- Keep the data model ready for AI roof detection, shading analysis, and grid hosting layers.
+- Give sales and development teams a shared source of truth for early site screening.
 
----
+## Current Stack
 
-## Core Purpose
+- Backend: Python 3.11, FastAPI async, SQLAlchemy 2.0, GeoAlchemy2.
+- Database: PostgreSQL 16 with PostGIS 3.4.
+- GIS: GeoPandas, Shapely, PVLib, Rasterio.
+- Frontend: Next.js 15 App Router, TypeScript, Tailwind, Mapbox GL JS-ready.
+- Container: Docker Compose with PostGIS, backend API, and Grafana.
 
-Enable data-centre operators (hyperscale and edge/mini) to discover high-potential solar sites for:
+## Repository Structure
 
-- Virtual Power Purchase Agreements (VPPAs)
-- Wheeling and renewable energy attribute aggregation
-- Reliable green power matching via the existing grid
-
----
-
-## Key Features (MVP)
-
-| Feature | Status |
-|---|---|
-| City-wide interactive map (ranked solar spots) | ✅ |
-| Multi-criteria suitability scoring engine | ✅ |
-| Private B2B dashboard with KPIs & site table | ✅ |
-| Adjustable scoring weights | ✅ |
-| CSV + GeoJSON export | ✅ |
-| Post-installation Grafana monitoring dashboard | ✅ |
-| Crowdsourced / satellite validation layer | 🔜 |
-
----
-
-## Scoring Model
-
-Each candidate site is scored on five dimensions (each normalised to 0–1):
-
-| Criterion | Default Weight | Description |
-|---|---|---|
-| Usable area | 0.30 | Normalised usable surface m² (rooftop / parking / brownfield) |
-| Irradiance | 0.25 | Annual GHI (kWh/m²/yr) normalised to city range |
-| Flood risk | 0.20 | Inverted — lower risk yields higher score |
-| Grid proximity | 0.15 | Inverted — closer to HV substation = higher score |
-| Structural viability | 0.10 | Land-use / structural suitability (direct 0–1 input) |
-
-Weights are configurable via the **Scoring Weights** page in the UI.
-
----
-
-## Architecture
-
-MVP (this repository):
-
-```
-sola/
-├── app/
-│   ├── main.py            # Streamlit entry point
-│   ├── scoring.py         # Multi-criteria scoring engine
-│   ├── map_view.py        # Folium interactive map builder
-│   └── data/
-│       └── sample_sites.py  # Synthetic city-site generator (demo)
-├── grafana/
-│   └── dashboards/
-│       └── solar_monitoring.json   # Grafana provisioning JSON
-├── tests/
-│   ├── test_scoring.py
-│   └── test_data.py
-└── requirements.txt
+```text
+Sola/
+├── backend/              # FastAPI application
+├── frontend/             # Next.js 15 App Router frontend
+├── gis-processing/       # GeoPandas/PVLib/Rasterio processing workspace
+├── grafana/              # Monitoring dashboards and provisioning
+├── data/                 # Raw, processed, and sample datasets
+├── docs/                 # Architecture, data, API, contribution docs
+└── scripts/              # Setup, seed, and utility scripts
 ```
 
-Planned full-stack architecture:
+## Features
 
-```
-sola/
-├── backend/           # FastAPI application
-├── frontend/          # Next.js + TypeScript + Mapbox GL JS
-├── gis-processing/    # GeoPandas, Rasterio, PVLib notebooks
-├── grafana/           # Dashboard definitions
-├── data/              # Data ingestion scripts
-├── docs/
-└── docker-compose.yml
-```
+- `GET /api/v1/sites` returns GeoJSON FeatureCollections.
+- Filters: `city`, `min_area_sqm`, `min_score`, and `limit`.
+- Realistic suitability scoring:
+  - usable area weight
+  - irradiance weight
+  - flood risk weight
+  - grid proximity weight
+- Sample PostGIS data loads automatically on first database startup.
+- Thiruvananthapuram MVP candidate sites are included in `scripts/load-thiruvananthapuram-sites.sql` and `data/sample/thiruvananthapuram_solar_sites.csv`.
+- Structured JSON logging and defensive API error handling.
+- Data model includes AI-detection status fields for later roof segmentation workflows.
+- Grafana provisioning is ready for operational dashboards.
 
-**MVP tech stack**: Python · Streamlit · Folium · Pandas · NumPy  
-**Planned stack**: FastAPI · PostgreSQL/PostGIS · Next.js · GeoPandas · PVLib · PyTorch · Grafana/TimescaleDB · Docker
+## How to Run Locally
 
----
-
-## Quick Start
+1. Clone and enter the repository:
 
 ```bash
-# 1. Clone
 git clone https://github.com/Githubdiaries/Sola.git
 cd Sola
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Run the app
-streamlit run app/main.py
 ```
 
-Open [http://localhost:8501](http://localhost:8501) in your browser.
-
----
-
-## Running Tests
+2. Create your local environment file:
 
 ```bash
-pytest tests/ -v
+cp .env.example .env
 ```
 
----
+3. Start PostGIS, the FastAPI backend, and Grafana:
 
-## Grafana Monitoring
+```bash
+docker compose up --build
+```
 
-Import `grafana/dashboards/solar_monitoring.json` into a Grafana instance (≥ 10.0). The dashboard expects a time-series data source (e.g., InfluxDB or Prometheus) tagged with `site_id`. Panels include:
+4. Verify the backend:
 
-- Total active power (kW)
-- Today's energy yield (kWh)
-- Performance ratio (%)
-- CO₂ avoided (kg)
-- 24-hour AC power time-series
-- Irradiance vs output correlation
-- Monthly energy yield (MWh)
+```bash
+curl http://localhost:8000/health
+```
 
----
+5. Query ranked solar sites:
 
-## Target Users
+```bash
+curl "http://localhost:8000/api/v1/sites?city=Bengaluru&min_area_sqm=8000&min_score=80"
+```
 
-- Renewable / energy procurement teams at hyperscale & edge data centres
-- Solar EPCs and project developers
-- Government bodies for policy planning
+6. Open service UIs:
 
----
+- API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+- Grafana: [http://localhost:3001](http://localhost:3001)
 
-## Current Status
+Default Grafana credentials are `admin` / `admin` unless changed in `.env`.
 
-- ✅ Phase 0: Repository setup + architecture
-- ✅ Phase 1: MVP — Streamlit scoring & mapping app
-- 🔜 Phase 2: Data ingestion pipeline for first pilot city
-- 🔜 Phase 3: Full-stack (FastAPI + Next.js + PostGIS)
+## Running the Frontend
 
----
+The frontend is scaffolded separately so product work can continue in parallel with GIS/API development.
 
-## Roadmap
+```bash
+cd frontend
+npm install
+NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
+```
 
-- [ ] Real GIS data ingestion (OS MasterMap, OpenStreetMap, satellite imagery)
-- [ ] Shading analysis (horizon / 3-D building model)
-- [ ] Grid connection capacity layer
-- [ ] VPPA aggregation calculator
-- [ ] Crowdsourced validation layer
-- [ ] Role-based access control (B2B multi-tenant)
-- [ ] REST API for third-party integrations
+Open [http://localhost:3000](http://localhost:3000).
 
----
+## API Examples
 
-## Contributing
+List all top-ranked sites:
 
-We welcome contributions! See `docs/CONTRIBUTING.md` (coming soon).
+```bash
+curl "http://localhost:8000/api/v1/sites?limit=25"
+```
 
----
+Filter by project viability:
+
+```bash
+curl "http://localhost:8000/api/v1/sites?min_score=85&min_area_sqm=7000"
+```
+
+View the Thiruvananthapuram MVP pipeline:
+
+```bash
+curl "http://localhost:8000/api/v1/sites?city=Thiruvananthapuram&limit=50"
+```
+
+If your database volume already existed before the Thiruvananthapuram seed file was added, load it once:
+
+```bash
+type scripts\load-thiruvananthapuram-sites.sql | docker exec -i sola-postgis psql -U sola -d sola
+```
+
+Score a candidate before saving it:
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/analysis/suitability" \
+  -H "Content-Type: application/json" \
+  -d '{"usable_area_sqm":9000,"annual_ghi_kwh_m2":1880,"flood_risk_score":0.2,"grid_distance_km":1.8}'
+```
+
+## Development Notes
+
+- Backend configuration lives in `backend/app/core/config.py`.
+- Database sessions and PostGIS initialization live in `backend/app/core/database.py`.
+- The candidate site model lives in `backend/app/models/solar_site.py`.
+- Scoring logic lives in `backend/app/services/suitability_service.py`.
+- Sample seed data lives in `scripts/init-db.sql`.
+
+The scoring service is intentionally isolated from the API endpoint so future AI roof detection can update polygons, usable area, shading loss, and confidence metadata without changing route contracts.
 
 ## License
 
-AGPL-3.0
+AGPL-3.0. See [LICENSE](LICENSE).

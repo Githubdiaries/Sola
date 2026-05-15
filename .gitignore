@@ -216,3 +216,25 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local env and Docker volumes
+.env
+*.local
+postgres_data/
+grafana_data/
+
+# GIS scratch artifacts
+*.gpkg
+*.tif
+*.tiff
+*.vrt
+*.aux.xml
