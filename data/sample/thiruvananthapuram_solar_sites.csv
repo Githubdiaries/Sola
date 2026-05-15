@@ -1,0 +1,15 @@
+name,city,state,asset_type,latitude,longitude,total_area_sqm,usable_area_sqm,annual_ghi_kwh_m2,flood_risk_score,grid_distance_km,suitability_score,estimated_capacity_kw,estimated_annual_generation_kwh,notes
+Technopark Phase 1,Thiruvananthapuram,Kerala,commercial_rooftop,8.5580,76.8810,56250,45000,1980,0.30,1.2,87.70,4500,6949800,Large IT campus with multiple buildings - excellent candidate
+Technopark Phase 2,Thiruvananthapuram,Kerala,commercial_rooftop,8.5525,76.8780,40000,32000,1980,0.30,1.5,87.25,3200,4942080,Major IT buildings
+Technopark Phase 3,Thiruvananthapuram,Kerala,commercial_rooftop,8.5500,76.8800,35000,28000,1980,0.30,1.8,86.80,2800,4324320,Newer expansion area
+Lulu Mall Thiruvananthapuram,Thiruvananthapuram,Kerala,commercial_rooftop,8.5153,76.8986,22500,18000,1980,0.40,2.5,83.75,1800,2779920,Large modern mall rooftop + parking canopy potential
+Mall of Travancore,Thiruvananthapuram,Kerala,commercial_rooftop,8.4780,76.9200,18750,15000,1980,0.35,3.0,84.00,1500,2316600,Near airport - high visibility
+Trivandrum Central Railway Station,Thiruvananthapuram,Kerala,transport_rooftop,8.4870,76.9525,10000,8000,1980,0.45,0.8,78.30,800,1235520,Main station roof + platforms
+Trivandrum International Airport Terminal,Thiruvananthapuram,Kerala,airport,8.4820,76.9200,31250,25000,1980,0.25,4.0,84.50,2500,3861000,Large terminal + cargo buildings (check permissions)
+Government Secretariat,Thiruvananthapuram,Kerala,government,8.5245,76.9360,15000,12000,1980,0.40,1.0,86.00,1200,1853280,Main administrative complex
+Medical College Hospital Trivandrum,Thiruvananthapuram,Kerala,institutional,8.5220,76.9270,18750,15000,1980,0.50,2.2,82.20,1500,2316600,Large hospital campus
+University of Kerala Kariavattom Campus,Thiruvananthapuram,Kerala,institutional,8.5680,76.8800,27500,22000,1980,0.35,3.5,83.25,2200,3397680,University buildings + open areas
+SCTIMST Hospital,Thiruvananthapuram,Kerala,institutional,8.5225,76.9250,12500,10000,1980,0.40,2.0,84.50,1000,1544400,Prestigious medical institute
+Kinfra Film & Video Park,Thiruvananthapuram,Kerala,industrial,8.5800,76.8700,22500,18000,1980,0.30,4.0,83.50,1800,2779920,Industrial + studio rooftops
+Technocity Pallippuram,Thiruvananthapuram,Kerala,commercial_rooftop,8.5900,76.8600,43750,35000,1980,0.25,5.0,83.00,3500,5405400,Emerging IT township
+Lulu Hypermarket Attingal (nearby),Thiruvananthapuram,Kerala,commercial_rooftop,8.7000,76.8200,15000,12000,1980,0.40,12.0,72.50,1200,1853280,Large retail

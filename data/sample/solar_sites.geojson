@@ -1,0 +1,95 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[77.5149, 13.0297], [77.5162, 13.0297], [77.5162, 13.031], [77.5149, 13.031], [77.5149, 13.0297]]]
+      },
+      "properties": {
+        "name": "Peenya Industrial Shed Cluster A",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "asset_type": "industrial_rooftop",
+        "usable_area_sqm": 10950,
+        "annual_ghi_kwh_m2": 1875,
+        "flood_risk_score": 0.18,
+        "grid_distance_km": 1.4,
+        "suitability_score": 91.83
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[77.7471, 12.9716], [77.7487, 12.9716], [77.7487, 12.973], [77.7471, 12.973], [77.7471, 12.9716]]]
+      },
+      "properties": {
+        "name": "Whitefield Logistics Park Roof 3",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "asset_type": "warehouse_rooftop",
+        "usable_area_sqm": 13240,
+        "annual_ghi_kwh_m2": 1842,
+        "flood_risk_score": 0.26,
+        "grid_distance_km": 2.1,
+        "suitability_score": 89.78
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[77.089, 28.4945], [77.09, 28.4945], [77.09, 28.4954], [77.089, 28.4954], [77.089, 28.4945]]]
+      },
+      "properties": {
+        "name": "Gurugram Cyber Park Block B",
+        "city": "Gurugram",
+        "state": "Haryana",
+        "asset_type": "commercial_rooftop",
+        "usable_area_sqm": 7210,
+        "annual_ghi_kwh_m2": 1940,
+        "flood_risk_score": 0.12,
+        "grid_distance_km": 1.9,
+        "suitability_score": 86.94
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[80.005, 12.8451], [80.0062, 12.8451], [80.0062, 12.8462], [80.005, 12.8462], [80.005, 12.8451]]]
+      },
+      "properties": {
+        "name": "Chennai Oragadam Auto Supplier Roof",
+        "city": "Chennai",
+        "state": "Tamil Nadu",
+        "asset_type": "industrial_rooftop",
+        "usable_area_sqm": 8600,
+        "annual_ghi_kwh_m2": 1810,
+        "flood_risk_score": 0.38,
+        "grid_distance_km": 3.2,
+        "suitability_score": 75.44
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[78.603, 17.67], [78.604, 17.67], [78.604, 17.671], [78.603, 17.671], [78.603, 17.67]]]
+      },
+      "properties": {
+        "name": "Hyderabad Genome Valley Facility",
+        "city": "Hyderabad",
+        "state": "Telangana",
+        "asset_type": "commercial_rooftop",
+        "usable_area_sqm": 5630,
+        "annual_ghi_kwh_m2": 1965,
+        "flood_risk_score": 0.09,
+        "grid_distance_km": 4.6,
+        "suitability_score": 81.15
+      }
+    }
+  ]
+}

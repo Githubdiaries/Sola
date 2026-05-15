@@ -1,0 +1,71 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: sola-postgis
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sola}
+      POSTGRES_USER: ${POSTGRES_USER:-sola}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sola_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sola} -d ${POSTGRES_DB:-sola}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    container_name: sola-backend
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-sola}
+      POSTGRES_USER: ${POSTGRES_USER:-sola}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sola_password}
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: sola-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      POSTGRES_DB: ${POSTGRES_DB:-sola}
+      POSTGRES_USER: ${POSTGRES_USER:-sola}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sola_password}
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  grafana_data:
