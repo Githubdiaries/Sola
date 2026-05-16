@@ -73,7 +73,7 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
   const [selectedSite, setSelectedSite] = useState<SiteFeature | null>(sites.features[0] ?? null);
   const [hoveredSite, setHoveredSite] = useState<SiteFeature | null>(null);
   const [mapZoom, setMapZoom] = useState(11);
-  const [rankedHeight, setRankedHeight] = useState(430);
+  const [rankedHeight, setRankedHeight] = useState(340);
   const [filters, setFilters] = useState<Filters>({
     city: sites.features.some((site) => site.properties.city === "Thiruvananthapuram") ? "Thiruvananthapuram" : "all",
     minScore: 0,
@@ -139,6 +139,12 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
     (sum, site) => sum + (site.properties.estimated_capacity_kw ?? site.properties.usable_area_sqm / 10),
     0,
   );
+  const totalAnnualMwh = filteredFeatures.reduce(
+    (sum, site) => sum + (site.properties.estimated_annual_generation_kwh ?? 0) / 1000,
+    0,
+  );
+  const nearGridCount = filteredFeatures.filter((site) => site.properties.grid_distance_km <= 2).length;
+  const lowFloodRiskCount = filteredFeatures.filter((site) => site.properties.flood_risk_score <= 0.35).length;
   const avgScore =
     filteredFeatures.length > 0
       ? filteredFeatures.reduce((sum, site) => sum + site.properties.suitability_score, 0) / filteredFeatures.length
@@ -154,6 +160,7 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
       style: mapStyle,
       center: [76.9366, 8.5241],
       zoom: 11,
+      pitch: 18,
       attributionControl: { compact: true },
     });
 
@@ -177,7 +184,7 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
         source: "solar-sites",
         paint: {
           "fill-color": scoreColorExpression(),
-          "fill-opacity": ["case", ["==", ["get", "id"], selectedId], 0.5, 0.22],
+          "fill-opacity": ["case", ["==", ["get", "id"], selectedId], 0.64, 0.38],
         },
       });
 
@@ -187,7 +194,7 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
         source: "solar-sites",
         paint: {
           "line-color": scoreColorExpression(),
-          "line-width": ["case", ["==", ["get", "id"], selectedId], 4, 2.2],
+          "line-width": ["case", ["==", ["get", "id"], selectedId], 4.6, 2.8],
           "line-opacity": 0.95,
         },
       });
@@ -197,10 +204,10 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
         type: "circle",
         source: "solar-site-points",
         paint: {
-          "circle-radius": ["case", ["==", ["get", "id"], selectedId], 24, 15],
+          "circle-radius": ["case", ["==", ["get", "id"], selectedId], 30, 18],
           "circle-color": scoreColorExpression(),
-          "circle-opacity": 0.24,
-          "circle-blur": 0.8,
+          "circle-opacity": 0.3,
+          "circle-blur": 0.72,
         },
       });
 
@@ -302,54 +309,36 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
   }, [selectedId]);
 
   return (
-    <main className="min-h-screen bg-[#06110d] text-[#e9f7ef]">
-      <div className="sola-grid-bg min-h-screen">
-        <header className="mx-auto flex w-full max-w-[1500px] items-center justify-between gap-4 px-5 py-4">
-          <div className="flex items-center gap-3">
-            <div className="grid h-9 w-9 place-items-center rounded-full border border-emerald-300/25 bg-emerald-300/10 text-sm font-semibold text-emerald-200">
+    <main className="min-h-screen bg-[#06110d] text-[#e9f7ef] xl:h-screen xl:overflow-hidden">
+      <div className="sola-grid-bg min-h-screen xl:h-screen">
+        <header className="mx-auto flex h-[72px] w-full max-w-[1560px] items-center justify-between gap-4 px-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-sm font-semibold text-emerald-100 shadow-[0_0_28px_rgba(52,211,153,0.16)]">
               S
             </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.28em] text-emerald-200/70">Sola</p>
-              <h1 className="text-lg font-semibold text-white md:text-xl">Solar Site Intelligence</h1>
+            <div className="min-w-0">
+              <p className="truncate text-sm text-emerald-100/58">Sola / Urban Solar Deployability</p>
+              <h1 className="truncate text-base font-semibold text-white sm:text-xl">Thiruvananthapuram Solar Intel</h1>
             </div>
           </div>
 
-          <nav className="hidden items-center gap-2 text-sm text-emerald-100/70 md:flex">
-            <span className="rounded-full border border-white/10 px-3 py-1.5">Thiruvananthapuram MVP</span>
-            <span className="rounded-full border border-white/10 px-3 py-1.5">PostGIS live</span>
-            <span className="rounded-full border border-white/10 px-3 py-1.5">MapLibre</span>
-          </nav>
+          <div className="hidden items-center gap-2 text-xs text-emerald-50/70 lg:flex">
+            <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">PostGIS live</span>
+            <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">MapLibre token-free</span>
+            <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-emerald-100">
+              {filteredFeatures.length} active sites
+            </span>
+          </div>
         </header>
 
-        <section className="mx-auto grid w-full max-w-[1500px] gap-4 px-5 pb-5 xl:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_minmax(300px,360px)]">
-          <section className="xl:col-span-3">
-            <div className="rounded-[28px] border border-white/10 bg-[#081610]/90 p-5 shadow-2xl shadow-black/30 md:p-6">
-              <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
-                <div>
-                  <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs text-emerald-100">
-                    <CheckCircle2 size={14} />
-                    {filteredFeatures.length} viable candidate surfaces found
-                  </p>
-                  <h2 className="max-w-4xl text-4xl font-semibold leading-[1.02] text-white md:text-6xl">
-                    Find deployable solar rooftops before the site visit.
-                  </h2>
-                  <p className="mt-4 max-w-2xl text-base leading-7 text-emerald-50/66">
-                    A map-first workflow for EPCs and developers to compare usable area, solar exposure, grid proximity, and flood risk across commercial rooftops.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <Metric label="Top Score" value={`${(topSite?.properties.suitability_score ?? 0).toFixed(1)}%`} />
-                  <Metric label="Avg Score" value={`${avgScore.toFixed(1)}%`} />
-                  <Metric label="Usable Area" value={`${formatCompact(totalArea)} m2`} />
-                  <Metric label="Est. DC" value={`${formatCompact(totalCapacityKw)} kW`} />
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <aside className="space-y-4 xl:max-h-[calc(100vh-312px)] xl:overflow-auto xl:pr-1">
+        <section className="mx-auto grid w-full max-w-[1560px] gap-4 px-4 pb-4 sm:px-6 xl:h-[calc(100vh-72px)] xl:grid-cols-[310px_minmax(0,1fr)_350px]">
+          <aside className="flex min-h-0 flex-col gap-4 xl:h-full xl:overflow-auto xl:pr-1">
+            <HeroPanel
+              avgScore={avgScore}
+              nearGridCount={nearGridCount}
+              topScore={topSite?.properties.suitability_score ?? 0}
+              totalArea={totalArea}
+            />
             <ControlPanel
               assetTypes={assetTypes}
               cities={cities}
@@ -368,24 +357,69 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
             />
           </aside>
 
-          <section className="min-h-[520px] overflow-hidden rounded-[28px] border border-white/10 bg-[#07140f] shadow-2xl shadow-black/30 xl:h-[calc(100vh-312px)]">
-            <MapWorkspace
-              hoveredSite={hoveredSite}
-              mapContainerRef={mapContainerRef}
-              onFit={() => fitToSites(mapRef.current, filteredFeatures)}
-              onZoomChange={(zoom) => setMapZoomLevel(mapRef.current, zoom)}
-              onZoomDelta={(delta) => setMapZoomLevel(mapRef.current, mapZoom + delta)}
-              zoom={mapZoom}
-            />
+          <section className="grid min-h-[720px] min-w-0 grid-rows-[auto_minmax(520px,1fr)] gap-4 xl:h-full xl:min-h-0">
+            <div className="grid gap-3 md:grid-cols-4">
+              <Metric label="Deployability" value={`${avgScore.toFixed(1)}%`} tone="green" />
+              <Metric label="Usable Area" value={`${formatCompact(totalArea)} m2`} />
+              <Metric label="Est. DC" value={`${formatCompact(totalCapacityKw)} kW`} />
+              <Metric label="Annual Yield" value={`${formatCompact(totalAnnualMwh)} MWh`} />
+            </div>
+
+            <section className="min-h-[520px] overflow-hidden rounded-[30px] border border-white/10 bg-[#07140f] shadow-2xl shadow-black/35">
+              <MapWorkspace
+                hoveredSite={hoveredSite}
+                mapContainerRef={mapContainerRef}
+                onFit={() => fitToSites(mapRef.current, filteredFeatures)}
+                onZoomChange={(zoom) => setMapZoomLevel(mapRef.current, zoom)}
+                onZoomDelta={(delta) => setMapZoomLevel(mapRef.current, mapZoom + delta)}
+                zoom={mapZoom}
+              />
+            </section>
           </section>
 
-          <aside className="space-y-4 xl:max-h-[calc(100vh-312px)] xl:overflow-auto xl:pl-1">
+          <aside className="flex min-h-0 flex-col gap-4 xl:h-full xl:overflow-auto xl:pl-1">
             <SiteDetail site={selectedSite} />
+            <OpportunityCard lowFloodRiskCount={lowFloodRiskCount} nearGridCount={nearGridCount} topSite={topSite} />
             <PipelineCard features={filteredFeatures} usingSampleData={usingSampleData} />
           </aside>
         </section>
       </div>
     </main>
+  );
+}
+
+function HeroPanel({
+  avgScore,
+  nearGridCount,
+  topScore,
+  totalArea,
+}: {
+  avgScore: number;
+  nearGridCount: number;
+  topScore: number;
+  totalArea: number;
+}) {
+  return (
+    <section className="rounded-[28px] border border-white/10 bg-[#081610]/88 p-4 shadow-2xl shadow-black/25">
+      <p className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs text-emerald-100">
+        <CheckCircle2 size={14} />
+        MVP territory ready
+      </p>
+      <h2 className="mt-4 text-2xl font-semibold leading-tight text-white">
+        Find viable rooftops before the first sales call.
+      </h2>
+      <p className="mt-3 text-sm leading-6 text-emerald-50/62">
+        Rank commercial roofs by area, solar exposure, flood risk, and grid proximity in one map-first workspace.
+      </p>
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <MiniStat label="Top" value={`${topScore.toFixed(0)}%`} />
+        <MiniStat label="Avg" value={`${avgScore.toFixed(0)}%`} />
+        <MiniStat label="Grid" value={`${nearGridCount}`} />
+      </div>
+      <div className="mt-3 rounded-2xl border border-white/10 bg-black/16 px-3 py-2 text-xs text-emerald-100/58">
+        {formatCompact(totalArea)} m2 deployable surface in current filters
+      </div>
+    </section>
   );
 }
 
@@ -533,7 +567,7 @@ function RankedList({
 
     const move = (moveEvent: PointerEvent) => {
       const nextHeight = startHeight + moveEvent.clientY - startY;
-      onResize(Math.max(280, Math.min(640, nextHeight)));
+      onResize(Math.max(260, Math.min(520, nextHeight)));
     };
 
     const stop = () => {
@@ -546,10 +580,10 @@ function RankedList({
   };
 
   return (
-    <section className="relative rounded-[24px] border border-white/10 bg-[#081610]/85 p-3" style={{ height }}>
+    <section className="relative shrink-0 rounded-[24px] border border-white/10 bg-[#081610]/85 p-3" style={{ height }}>
       <div className="mb-3 flex items-center justify-between px-1">
         <h3 className="text-sm font-medium text-white">Ranked candidates</h3>
-        <span className="text-xs text-emerald-100/50">{features.length} sites · drag handle</span>
+        <span className="text-xs text-emerald-100/50">{features.length} sites / drag</span>
       </div>
       <div className="space-y-2 overflow-auto pr-1" style={{ height: height - 58 }}>
         {features.map((site, index) => (
@@ -736,6 +770,32 @@ function SiteDetail({ site }: { site: SiteFeature | null }) {
   );
 }
 
+function OpportunityCard({
+  lowFloodRiskCount,
+  nearGridCount,
+  topSite,
+}: {
+  lowFloodRiskCount: number;
+  nearGridCount: number;
+  topSite: SiteFeature | null;
+}) {
+  return (
+    <section className="rounded-[24px] border border-white/10 bg-[#081610]/85 p-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-white">MVP signal</h3>
+        <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-xs text-emerald-100">
+          sales-ready
+        </span>
+      </div>
+      <div className="mt-4 space-y-3">
+        <SignalRow label="Best first pitch" value={topSite?.properties.name ?? "No active site"} />
+        <SignalRow label="Low flood risk" value={`${lowFloodRiskCount} sites`} />
+        <SignalRow label="Grid within 2 km" value={`${nearGridCount} sites`} />
+      </div>
+    </section>
+  );
+}
+
 function PipelineCard({ features, usingSampleData }: { features: SiteFeature[]; usingSampleData: boolean }) {
   return (
     <section className="rounded-[24px] border border-white/10 bg-[#081610]/85 p-4">
@@ -749,9 +809,24 @@ function PipelineCard({ features, usingSampleData }: { features: SiteFeature[]; 
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <article className="rounded-3xl border border-white/10 bg-black/16 p-4">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
+      <p className="text-[11px] text-emerald-100/45">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
+function Metric({ label, tone = "default", value }: { label: string; tone?: "default" | "green"; value: string }) {
+  return (
+    <article
+      className={`rounded-[24px] border p-4 shadow-xl shadow-black/18 ${
+        tone === "green"
+          ? "border-emerald-300/25 bg-emerald-300/10"
+          : "border-white/10 bg-[#081610]/86"
+      }`}
+    >
       <p className="text-xs text-emerald-100/50">{label}</p>
       <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
     </article>
@@ -805,6 +880,15 @@ function HealthRow({ label, ok, value }: { label: string; ok: boolean; value: st
   );
 }
 
+function SignalRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/14 p-3">
+      <p className="text-xs text-emerald-100/45">{label}</p>
+      <p className="mt-1 text-sm font-medium leading-5 text-white">{value}</p>
+    </div>
+  );
+}
+
 function scoreColorExpression() {
   return [
     "interpolate",
@@ -826,9 +910,9 @@ function updateSelectionPaint(map: Map, selectedId: string) {
     return;
   }
 
-  map.setPaintProperty("solar-sites-fill", "fill-opacity", ["case", ["==", ["get", "id"], selectedId], 0.5, 0.22]);
-  map.setPaintProperty("solar-sites-line", "line-width", ["case", ["==", ["get", "id"], selectedId], 4, 2.2]);
-  map.setPaintProperty("solar-site-glow", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 24, 15]);
+  map.setPaintProperty("solar-sites-fill", "fill-opacity", ["case", ["==", ["get", "id"], selectedId], 0.64, 0.38]);
+  map.setPaintProperty("solar-sites-line", "line-width", ["case", ["==", ["get", "id"], selectedId], 4.6, 2.8]);
+  map.setPaintProperty("solar-site-glow", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 30, 18]);
   map.setPaintProperty("solar-site-points", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 8, 5.5]);
   map.setPaintProperty("solar-site-points", "circle-stroke-width", ["case", ["==", ["get", "id"], selectedId], 2.8, 1.3]);
 }
