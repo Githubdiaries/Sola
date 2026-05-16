@@ -5,11 +5,9 @@ import maplibregl, { type Map, type MapLayerMouseEvent } from "maplibre-gl";
 import {
   Bell,
   ChevronDown,
-  FileText,
   Layers,
   Minus,
   Plus,
-  Search,
   SlidersHorizontal,
   X,
 } from "lucide-react";
@@ -43,13 +41,21 @@ type Filters = {
 };
 
 const numberFormatter = new Intl.NumberFormat("en-US");
-const regionCities = ["Thiruvananthapuram", "Bengaluru", "Chennai"];
-const cityLabels: Record<string, string> = {
-  all: "All regions",
-  Thiruvananthapuram: "Thiruvananthapuram",
-  Bengaluru: "Bengaluru",
-  Chennai: "Chennai",
-};
+const keralaCities = [
+  "Thiruvananthapuram",
+  "Kollam",
+  "Pathanamthitta",
+  "Alappuzha",
+  "Kottayam",
+  "Kochi",
+  "Thrissur",
+  "Palakkad",
+  "Malappuram",
+  "Kozhikode",
+  "Kalpetta",
+  "Kannur",
+  "Kasaragod",
+];
 
 const emptyCollection: SiteCollection = {
   type: "FeatureCollection",
@@ -100,7 +106,7 @@ const mapStyle: maplibregl.StyleSpecification = {
   ],
 };
 
-export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection; usingSampleData: boolean }) {
+export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData: boolean }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
   const featuresRef = useRef<SiteFeature[]>([]);
@@ -119,10 +125,10 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
   });
 
   const scopedFeatures = useMemo(
-    () => sites.features.filter((site) => regionCities.includes(site.properties.city)),
+    () => sites.features.filter((site) => keralaCities.includes(site.properties.city)),
     [sites.features],
   );
-  const cities = useMemo(() => regionCities.filter((city) => scopedFeatures.some((site) => site.properties.city === city)), [scopedFeatures]);
+  const cities = keralaCities;
   const assetTypes = useMemo(
     () => Array.from(new Set(scopedFeatures.map((site) => site.properties.asset_type))).sort(),
     [scopedFeatures],
@@ -141,7 +147,7 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
 
       return (
         matchesQuery &&
-        (filters.city === "all" || properties.city === filters.city) &&
+        properties.city === filters.city &&
         properties.suitability_score >= filters.minScore &&
         properties.usable_area_sqm >= filters.minArea &&
         (filters.assetType === "all" || filters.assetType === properties.asset_type)
@@ -385,7 +391,8 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
             </div>
 
             <div className="relative h-[760px] overflow-hidden rounded-2xl border border-[#1e2538] bg-[#0c0f1c] shadow-[0_28px_90px_rgba(0,0,0,0.42)] lg:h-[calc(100vh-142px)]">
-              <MapCanvas
+                <MapCanvas
+                avgScore={avgScore}
                 hoveredSite={hoveredSite}
                 hoverPosition={hoverPosition}
                 mapContainerRef={mapContainerRef}
@@ -396,7 +403,7 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
               <MapSummary avgScore={avgScore} count={filteredFeatures.length} totalArea={totalArea} totalCapacityKw={totalCapacityKw} />
 
               {detailOpen && selectedSite ? (
-                <DetailPanel onClose={() => setDetailOpen(false)} site={selectedSite} usingSampleData={usingSampleData} />
+                <DetailPanel onClose={() => setDetailOpen(false)} site={selectedSite} />
               ) : null}
             </div>
           </section>
@@ -426,9 +433,8 @@ function TopNav({ query, setQuery }: { query: string; setQuery: (query: string) 
         </div>
 
         <label className="relative mx-auto hidden w-full max-w-[520px] md:block">
-          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#a3b4d0]/60" size={16} />
           <input
-            className="h-11 w-full rounded-xl border border-[#1e2538] bg-[#0c0f1c] pl-10 pr-4 text-sm text-[#f8fafd] outline-none transition placeholder:text-[#a3b4d0]/48 focus:border-[#6366f1]/60 focus:ring-4 focus:ring-[#6366f1]/10"
+            className="h-11 w-full rounded-xl border border-[#1e2538] bg-[#0c0f1c] px-5 text-sm text-[#f8fafd] outline-none transition placeholder:text-[#a3b4d0]/48 focus:border-[#a3ff12]/55 focus:ring-4 focus:ring-[#a3ff12]/10"
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Global Search"
             value={query}
@@ -481,7 +487,7 @@ function FilterSidebar({
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#a3b4d0]">Filters</p>
           <h2 className="mt-1 text-lg font-semibold text-[#f8fafd]">Site criteria</h2>
         </div>
-        <SlidersHorizontal className="text-[#6366f1]" size={18} />
+        <SlidersHorizontal className="text-[#a3ff12]" size={18} />
       </div>
 
       <div className="space-y-6 pt-5">
@@ -489,14 +495,13 @@ function FilterSidebar({
           <span className="text-sm font-medium text-[#f8fafd]">City</span>
           <span className="relative mt-2 block">
             <select
-              className="h-11 w-full appearance-none rounded-xl border border-[#1e2538] bg-[#141927] px-3 pr-10 text-sm text-[#f8fafd] outline-none transition focus:border-[#6366f1]/60"
+              className="h-11 w-full appearance-none rounded-xl border border-[#1e2538] bg-[#141927] px-3 pr-10 text-sm text-[#f8fafd] outline-none transition focus:border-[#a3ff12]/60"
               onChange={(event) => setFilters((current) => ({ ...current, city: event.target.value }))}
               value={filters.city}
             >
-              <option value="all">All regions</option>
               {cities.map((city) => (
                 <option key={city} value={city}>
-                  {cityLabels[city] ?? city}
+                  {city}
                 </option>
               ))}
             </select>
@@ -507,7 +512,7 @@ function FilterSidebar({
         <div>
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-[#f8fafd]">Min Score</span>
-            <span className="rounded-lg border border-[#6366f1]/30 bg-[#6366f1]/12 px-2 py-1 text-xs font-semibold text-[#c7d2fe]">
+            <span className="rounded-lg border border-[#a3ff12]/36 bg-[#a3ff12]/12 px-2 py-1 text-xs font-semibold text-[#ecfccb]">
               {filters.minScore}
             </span>
           </div>
@@ -564,8 +569,8 @@ function FilterSidebar({
                 <button
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                     active
-                      ? "border-[#c4b5fd]/70 bg-[#8b5cf6]/18 text-[#f8fafd]"
-                      : "border-[#1e2538] bg-[#141927] text-[#a3b4d0] hover:border-[#8b5cf6]/36 hover:text-[#f8fafd]"
+                      ? "border-[#a3ff12]/70 bg-[#a3ff12]/16 text-[#f8fafd]"
+                      : "border-[#1e2538] bg-[#141927] text-[#a3b4d0] hover:border-[#a3ff12]/36 hover:text-[#f8fafd]"
                   }`}
                   key={assetType}
                   onClick={() =>
@@ -588,31 +593,35 @@ function FilterSidebar({
 }
 
 function MapCanvas({
+  avgScore,
   hoveredSite,
   hoverPosition,
   mapContainerRef,
   onFit,
   onZoomDelta,
 }: {
+  avgScore: number;
   hoveredSite: SiteFeature | null;
   hoverPosition: { x: number; y: number } | null;
   mapContainerRef: React.RefObject<HTMLDivElement | null>;
   onFit: () => void;
   onZoomDelta: (delta: number) => void;
 }) {
+  const legendPosition = `${Math.max(0, Math.min(100, ((avgScore - 70) / 20) * 100))}%`;
+
   return (
     <div className="absolute inset-0">
       <div ref={mapContainerRef} className="absolute inset-0" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(5,6,15,0.34),transparent_28%,rgba(5,6,15,0.18)_100%),radial-gradient(circle_at_50%_20%,transparent_0%,rgba(5,6,15,0.24)_68%,rgba(5,6,15,0.6)_100%)]" />
 
-      <div className="absolute right-4 top-4 z-10 flex overflow-hidden rounded-xl border border-[#1e2538] bg-[#0c0f1c]/86 shadow-2xl backdrop-blur">
+      <div className="absolute right-4 top-[118px] z-10 grid grid-cols-2 overflow-hidden rounded-xl border border-[#1e2538] bg-[#0c0f1c]/86 shadow-2xl backdrop-blur">
         <button className="grid h-10 w-10 place-items-center text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={() => onZoomDelta(0.75)} type="button">
           <Plus size={16} />
         </button>
         <button className="grid h-10 w-10 place-items-center border-l border-[#1e2538] text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={() => onZoomDelta(-0.75)} type="button">
           <Minus size={16} />
         </button>
-        <button className="grid h-10 w-10 place-items-center border-l border-[#1e2538] text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={onFit} type="button">
+        <button className="col-span-2 grid h-10 place-items-center border-t border-[#1e2538] text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={onFit} type="button">
           <Layers size={16} />
         </button>
       </div>
@@ -622,7 +631,12 @@ function MapCanvas({
           <span className="text-xs font-medium text-[#f8fafd]">Suitability score</span>
           <span className="text-[11px] text-[#a3b4d0]">live</span>
         </div>
-        <div className="h-2 rounded-full bg-gradient-to-r from-[#facc15] via-[#a3ff12] to-[#22c55e]" />
+        <div className="relative h-2 rounded-full bg-gradient-to-r from-[#facc15] via-[#a3ff12] to-[#22c55e]">
+          <span
+            className="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#05060f] bg-[#a3ff12] shadow-[0_0_18px_rgba(163,255,18,0.65)]"
+            style={{ left: legendPosition }}
+          />
+        </div>
         <div className="mt-2 flex justify-between text-[11px] text-[#a3b4d0]">
           <span>Review</span>
           <span>Good</span>
@@ -639,11 +653,8 @@ function MapCanvas({
             transform: hoverPosition.x > 760 ? "translate(-108%, -44%)" : "translate(18px, -44%)",
           }}
         >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.14em] text-[#a3b4d0]">Site intelligence</p>
-              <h4 className="mt-1 text-sm font-semibold leading-5 text-[#f8fafd]">{hoveredSite.properties.name}</h4>
-            </div>
+          <div className="flex items-center justify-between gap-3">
+            <h4 className="text-sm font-semibold leading-5 text-[#f8fafd]">{hoveredSite.properties.name}</h4>
             <ScorePill value={hoveredSite.properties.suitability_score} />
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[#a3b4d0]">
@@ -668,25 +679,25 @@ function MapSummary({
   totalCapacityKw: number;
 }) {
   return (
-    <div className="pointer-events-none absolute bottom-4 right-4 z-10 hidden grid-cols-3 gap-2 md:grid">
+    <div className="pointer-events-none absolute right-4 top-4 z-10 hidden w-[420px] grid-cols-3 gap-2 md:grid">
       <SummaryTile label="Sites" value={`${count}`} />
       <SummaryTile label="Avg Score" value={`${avgScore.toFixed(0)}%`} />
       <SummaryTile label="Capacity" value={`${formatCompact(totalCapacityKw)} kWp`} />
-      <SummaryTile className="col-span-3" label="Filtered roof area" value={`${formatCompact(totalArea)} m2`} />
+      <SummaryTile className="col-span-2" label="Filtered roof area" value={`${formatCompact(totalArea)} m2`} />
     </div>
   );
 }
 
 function SummaryTile({ className = "", label, value }: { className?: string; label: string; value: string }) {
   return (
-    <div className={`rounded-xl border border-[#1e2538] bg-[#0c0f1c]/86 px-3 py-2 shadow-xl backdrop-blur ${className}`}>
-      <p className="text-[11px] text-[#a3b4d0]">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-[#f8fafd]">{value}</p>
+    <div className={`rounded-xl border border-[#1e2538] bg-[#0c0f1c]/80 px-3 py-2 shadow-xl backdrop-blur ${className}`}>
+      <p className="text-[10px] text-[#a3b4d0]">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold text-[#f8fafd]">{value}</p>
     </div>
   );
 }
 
-function DetailPanel({ onClose, site, usingSampleData }: { onClose: () => void; site: SiteFeature; usingSampleData: boolean }) {
+function DetailPanel({ onClose, site }: { onClose: () => void; site: SiteFeature }) {
   const properties = site.properties;
   const capacityKw = properties.estimated_capacity_kw ?? properties.usable_area_sqm / 10;
   const floodSafety = Math.round((1 - properties.flood_risk_score) * 100);
@@ -694,56 +705,39 @@ function DetailPanel({ onClose, site, usingSampleData }: { onClose: () => void; 
 
   return (
     <>
-      <aside className="absolute left-5 top-5 z-20 w-[340px] rounded-2xl border border-[#1e2538] bg-[#0c0f1c]/94 p-4 shadow-[0_28px_90px_rgba(0,0,0,0.46)] backdrop-blur-xl max-md:hidden">
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#a3b4d0]">Selected site</p>
-        <button className="grid h-8 w-8 place-items-center rounded-lg text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={onClose} type="button">
-          <X size={15} />
-        </button>
-      </div>
-
-      <div className="mt-3 h-[122px] overflow-hidden rounded-xl border border-[#1e2538] bg-[linear-gradient(135deg,rgba(99,102,241,0.14),rgba(34,211,238,0.08)),repeating-linear-gradient(90deg,rgba(248,250,253,0.16)_0_1px,transparent_1px_18px),linear-gradient(180deg,#1f2937,#111827)]">
-        <div className="flex h-full items-end justify-between p-3">
-          <div className="rounded-lg border border-white/12 bg-white/10 px-3 py-2 text-xs text-[#f8fafd] backdrop-blur">
-            rooftop preview
+      <aside className="absolute left-5 top-5 z-20 w-[300px] rounded-2xl border border-[#1e2538] bg-[#0c0f1c]/92 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.42)] backdrop-blur-xl max-md:hidden">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3">
+              <h3 className="min-w-0 text-lg font-semibold leading-tight tracking-[-0.02em] text-[#f8fafd]">{properties.name}</h3>
+              <ScorePill value={properties.suitability_score} />
+            </div>
+            <p className="mt-1 text-sm text-[#a3b4d0]">{cityLine}</p>
           </div>
-          <ScorePill large value={properties.suitability_score} />
+          <button className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={onClose} type="button">
+            <X size={15} />
+          </button>
         </div>
-      </div>
 
-      <h3 className="mt-4 text-xl font-semibold leading-tight tracking-[-0.02em] text-[#f8fafd]">{properties.name}</h3>
-      <p className="mt-1 text-sm text-[#a3b4d0]">{cityLine}</p>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <InfoMetric label="Area" value={`${formatCompact(properties.usable_area_sqm)} m2`} />
+          <InfoMetric label="Est." value={`${formatCompact(capacityKw)} kWp`} />
+          <InfoMetric label="Grid" value={`${properties.grid_distance_km.toFixed(1)} km`} />
+        </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        <InfoMetric label="Area" value={`${formatCompact(properties.usable_area_sqm)} m2`} />
-        <InfoMetric label="Est." value={`${formatCompact(capacityKw)} kWp`} />
-        <InfoMetric label="Score" value={`${Math.round(properties.suitability_score)}/100`} />
-      </div>
-
-      <div className="mt-4 divide-y divide-[#1e2538] rounded-xl border border-[#1e2538] bg-[#141927]/70">
-        <DetailRow label="Grid distance" value={`${properties.grid_distance_km.toFixed(1)} km`} />
-        <DetailRow label="Flood resilience" value={`${floodSafety}%`} />
-        <DetailRow label="Solar exposure" value={`${formatNumber(properties.annual_ghi_kwh_m2)} kWh/m2`} />
-        <DetailRow label="Data source" value={usingSampleData ? "Public demo" : "Live PostGIS"} />
-      </div>
-
-      <div className="mt-4 grid gap-2">
-        <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#6366f1] text-sm font-semibold text-white shadow-[0_18px_45px_rgba(99,102,241,0.28)] transition hover:bg-[#7073ff]" type="button">
-          <FileText size={15} />
-          View Full Report
-        </button>
-        <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#1e2538] bg-[#141927]/70 text-sm font-semibold text-[#f8fafd] transition hover:border-[#6366f1]/50" type="button">
-          <FileText size={15} />
-          Generate Proposal
-        </button>
-      </div>
+        <div className="mt-3 divide-y divide-[#1e2538] rounded-xl border border-[#1e2538] bg-[#141927]/64">
+          <DetailRow label="Flood resilience" value={`${floodSafety}%`} />
+          <DetailRow label="Solar exposure" value={`${formatNumber(properties.annual_ghi_kwh_m2)} kWh/m2`} />
+        </div>
       </aside>
 
       <aside className="absolute inset-x-3 bottom-3 z-20 rounded-2xl border border-[#1e2538] bg-[#0c0f1c]/94 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.5)] backdrop-blur-xl md:hidden">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#a3b4d0]">Selected site</p>
-            <h3 className="mt-1 text-base font-semibold leading-tight text-[#f8fafd]">{properties.name}</h3>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="min-w-0 text-base font-semibold leading-tight text-[#f8fafd]">{properties.name}</h3>
+              <ScorePill value={properties.suitability_score} />
+            </div>
             <p className="mt-1 text-xs text-[#a3b4d0]">{cityLine}</p>
           </div>
           <button className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={onClose} type="button">
@@ -787,7 +781,7 @@ function MobileRankedStrip({
         {(features.length ? features : topSite ? [topSite] : []).slice(0, 8).map((site, index) => (
           <button
             className={`w-[230px] shrink-0 rounded-xl border p-3 text-left ${
-              selectedId === site.properties.id ? "border-[#6366f1]/55 bg-[#6366f1]/12" : "border-[#1e2538] bg-[#141927]"
+              selectedId === site.properties.id ? "border-[#a3ff12]/55 bg-[#a3ff12]/12" : "border-[#1e2538] bg-[#141927]"
             }`}
             key={site.properties.id}
             onClick={() => onSelect(site)}
