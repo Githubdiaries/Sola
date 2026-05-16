@@ -12,7 +12,6 @@ import {
   Search,
   SlidersHorizontal,
   X,
-  Zap,
 } from "lucide-react";
 
 type SiteProperties = {
@@ -36,7 +35,7 @@ type SiteCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon, SiteProperties>
 type PointFeature = GeoJSON.Feature<GeoJSON.Point, SiteProperties>;
 
 type Filters = {
-  assetTypes: string[];
+  assetType: string;
   city: string;
   minArea: number;
   minScore: number;
@@ -112,7 +111,7 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
   const [areaUnit, setAreaUnit] = useState<"sqm" | "sqft">("sqm");
   const [detailOpen, setDetailOpen] = useState(true);
   const [filters, setFilters] = useState<Filters>({
-    assetTypes: [],
+    assetType: "all",
     city: "Thiruvananthapuram",
     minArea: 0,
     minScore: 70,
@@ -145,7 +144,7 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
         (filters.city === "all" || properties.city === filters.city) &&
         properties.suitability_score >= filters.minScore &&
         properties.usable_area_sqm >= filters.minArea &&
-        (filters.assetTypes.length === 0 || filters.assetTypes.includes(properties.asset_type))
+        (filters.assetType === "all" || filters.assetType === properties.asset_type)
       );
     });
   }, [filters, scopedFeatures]);
@@ -381,7 +380,7 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
 
           <section className="min-w-0 flex-1">
             <div className="mb-3">
-              <p className="text-sm font-medium text-[#f8fafd]">SolarForge</p>
+              <p className="sola-wordmark text-2xl text-[#f8fafd]">Sola</p>
               <p className="mt-1 text-sm text-[#a3b4d0]">Premium solar site intelligence platform</p>
             </div>
 
@@ -423,10 +422,7 @@ function TopNav({ query, setQuery }: { query: string; setQuery: (query: string) 
     <header className="sticky top-0 z-30 border-b border-[#1e2538]/80 bg-[#05060f]/82 backdrop-blur-xl">
       <div className="mx-auto flex h-[72px] w-full max-w-[1480px] items-center gap-4 px-4">
         <div className="flex min-w-[210px] items-center gap-2">
-          <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#141927] text-[#818cf8]">
-            <Zap fill="currentColor" size={17} />
-          </span>
-          <span className="text-[18px] font-semibold tracking-[-0.02em] text-[#f8fafd]">SolarForge</span>
+          <span className="sola-wordmark text-[26px] leading-none text-[#f8fafd]">Sola</span>
         </div>
 
         <label className="relative mx-auto hidden w-full max-w-[520px] md:block">
@@ -442,10 +438,10 @@ function TopNav({ query, setQuery }: { query: string; setQuery: (query: string) 
         <div className="ml-auto flex items-center gap-3">
           <button className="relative grid h-10 w-10 place-items-center rounded-xl border border-[#1e2538] bg-[#0c0f1c] text-[#a3b4d0] transition hover:text-[#f8fafd]" type="button">
             <Bell size={17} />
-            <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[#f59e0b]" />
+            <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[#d6b85c]" />
           </button>
           <button className="flex h-10 items-center gap-2 rounded-xl border border-[#1e2538] bg-[#0c0f1c] px-2.5 text-sm text-[#f8fafd]" type="button">
-            <span className="grid h-7 w-7 place-items-center rounded-full bg-[linear-gradient(135deg,#6366f1,#22d3ee)] text-xs font-semibold text-white">
+            <span className="grid h-7 w-7 place-items-center rounded-full bg-[linear-gradient(135deg,#8b5cf6,#2dd4bf)] text-xs font-semibold text-white">
               A
             </span>
             <ChevronDown size={14} />
@@ -472,6 +468,11 @@ function FilterSidebar({
   setFilters: React.Dispatch<React.SetStateAction<Filters>>;
 }) {
   const displayedArea = areaUnit === "sqm" ? filters.minArea : Math.round(filters.minArea * 10.7639);
+  const areaInputValue = displayedArea === 0 ? "0" : String(displayedArea);
+  const parseAreaValue = (rawValue: string) => {
+    const normalized = rawValue.replace(/[^\d]/g, "").replace(/^0+(?=\d)/, "");
+    return normalized === "" ? 0 : Number(normalized);
+  };
 
   return (
     <aside className="w-full shrink-0 rounded-2xl border border-[#1e2538] bg-[#0c0f1c]/88 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.26)] backdrop-blur lg:w-[292px] lg:overflow-auto">
@@ -529,16 +530,20 @@ function FilterSidebar({
           <span className="text-sm font-medium text-[#f8fafd]">Min Area</span>
           <div className="mt-2 flex overflow-hidden rounded-xl border border-[#1e2538] bg-[#141927]">
             <input
+              aria-label={`Min Area ${areaUnit}`}
               className="h-11 min-w-0 flex-1 bg-transparent px-3 text-sm text-[#f8fafd] outline-none"
-              min={0}
-              onChange={(event) =>
+              inputMode="numeric"
+              onChange={(event) => {
+                const parsedArea = parseAreaValue(event.target.value);
                 setFilters((current) => ({
                   ...current,
-                  minArea: areaUnit === "sqm" ? Number(event.target.value) : Math.round(Number(event.target.value) / 10.7639),
-                }))
-              }
-              type="number"
-              value={displayedArea}
+                  minArea: areaUnit === "sqm" ? parsedArea : Math.round(parsedArea / 10.7639),
+                }));
+              }}
+              onFocus={(event) => event.currentTarget.select()}
+              pattern="[0-9]*"
+              type="text"
+              value={areaInputValue}
             />
             <button
               className="w-16 border-l border-[#1e2538] text-xs font-medium text-[#a3b4d0] transition hover:text-[#f8fafd]"
@@ -554,21 +559,19 @@ function FilterSidebar({
           <span className="text-sm font-medium text-[#f8fafd]">Asset Type</span>
           <div className="mt-3 flex flex-wrap gap-2">
             {assetTypes.map((assetType) => {
-              const active = filters.assetTypes.includes(assetType);
+              const active = filters.assetType === assetType;
               return (
                 <button
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                     active
-                      ? "border-[#6366f1]/60 bg-[#6366f1]/18 text-[#f8fafd]"
-                      : "border-[#1e2538] bg-[#141927] text-[#a3b4d0] hover:border-[#6366f1]/36 hover:text-[#f8fafd]"
+                      ? "border-[#c4b5fd]/70 bg-[#8b5cf6]/18 text-[#f8fafd]"
+                      : "border-[#1e2538] bg-[#141927] text-[#a3b4d0] hover:border-[#8b5cf6]/36 hover:text-[#f8fafd]"
                   }`}
                   key={assetType}
                   onClick={() =>
                     setFilters((current) => ({
                       ...current,
-                      assetTypes: active
-                        ? current.assetTypes.filter((type) => type !== assetType)
-                        : [...current.assetTypes, assetType],
+                      assetType: active ? "all" : assetType,
                     }))
                   }
                   type="button"
@@ -602,7 +605,7 @@ function MapCanvas({
       <div ref={mapContainerRef} className="absolute inset-0" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(5,6,15,0.34),transparent_28%,rgba(5,6,15,0.18)_100%),radial-gradient(circle_at_50%_20%,transparent_0%,rgba(5,6,15,0.24)_68%,rgba(5,6,15,0.6)_100%)]" />
 
-      <div className="absolute left-4 top-4 z-10 flex overflow-hidden rounded-xl border border-[#1e2538] bg-[#0c0f1c]/86 shadow-2xl backdrop-blur">
+      <div className="absolute right-4 top-4 z-10 flex overflow-hidden rounded-xl border border-[#1e2538] bg-[#0c0f1c]/86 shadow-2xl backdrop-blur">
         <button className="grid h-10 w-10 place-items-center text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={() => onZoomDelta(0.75)} type="button">
           <Plus size={16} />
         </button>
@@ -614,12 +617,12 @@ function MapCanvas({
         </button>
       </div>
 
-      <div className="absolute bottom-4 left-4 z-10 w-[230px] rounded-xl border border-[#1e2538] bg-[#0c0f1c]/88 p-3 shadow-2xl backdrop-blur">
+      <div className="absolute bottom-4 left-4 z-10 w-[230px] rounded-xl border border-[#1e2538] bg-[#0c0f1c]/88 p-3 shadow-2xl backdrop-blur md:left-[380px]">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-xs font-medium text-[#f8fafd]">Suitability score</span>
           <span className="text-[11px] text-[#a3b4d0]">live</span>
         </div>
-        <div className="h-2 rounded-full bg-gradient-to-r from-[#ef4444] via-[#f59e0b] via-[#22d3ee] to-[#6366f1]" />
+        <div className="h-2 rounded-full bg-gradient-to-r from-[#8b5cf6] via-[#d6b85c] via-[#2dd4bf] to-[#e0e7ff]" />
         <div className="mt-2 flex justify-between text-[11px] text-[#a3b4d0]">
           <span>Review</span>
           <span>Good</span>
@@ -633,7 +636,7 @@ function MapCanvas({
           style={{
             left: hoverPosition.x,
             top: hoverPosition.y,
-            transform: hoverPosition.x > 560 ? "translate(-108%, -44%)" : "translate(18px, -44%)",
+            transform: hoverPosition.x > 760 ? "translate(-108%, -44%)" : "translate(18px, -44%)",
           }}
         >
           <div className="flex items-start justify-between gap-3">
@@ -691,7 +694,7 @@ function DetailPanel({ onClose, site, usingSampleData }: { onClose: () => void; 
 
   return (
     <>
-      <aside className="absolute right-5 top-5 z-20 w-[340px] rounded-2xl border border-[#1e2538] bg-[#0c0f1c]/94 p-4 shadow-[0_28px_90px_rgba(0,0,0,0.46)] backdrop-blur-xl max-md:hidden">
+      <aside className="absolute left-5 top-5 z-20 w-[340px] rounded-2xl border border-[#1e2538] bg-[#0c0f1c]/94 p-4 shadow-[0_28px_90px_rgba(0,0,0,0.46)] backdrop-blur-xl max-md:hidden">
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#a3b4d0]">Selected site</p>
         <button className="grid h-8 w-8 place-items-center rounded-lg text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={onClose} type="button">
@@ -730,7 +733,7 @@ function DetailPanel({ onClose, site, usingSampleData }: { onClose: () => void; 
           View Full Report
         </button>
         <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#1e2538] bg-[#141927]/70 text-sm font-semibold text-[#f8fafd] transition hover:border-[#6366f1]/50" type="button">
-          <Zap size={15} />
+          <FileText size={15} />
           Generate Proposal
         </button>
       </div>
@@ -813,7 +816,12 @@ function InfoMetric({ label, value }: { label: string; value: string }) {
 }
 
 function ScorePill({ large = false, value }: { large?: boolean; value: number }) {
-  const tone = value >= 88 ? "border-[#6366f1]/55 bg-[#6366f1]/22 text-[#c7d2fe]" : value >= 82 ? "border-[#f59e0b]/45 bg-[#f59e0b]/18 text-[#fde68a]" : "border-[#ef4444]/45 bg-[#ef4444]/18 text-[#fecaca]";
+  const tone =
+    value >= 88
+      ? "border-[#e0e7ff]/60 bg-[#e0e7ff]/16 text-[#f8fafd]"
+      : value >= 82
+        ? "border-[#2dd4bf]/48 bg-[#2dd4bf]/14 text-[#b6fff5]"
+        : "border-[#d6b85c]/48 bg-[#d6b85c]/14 text-[#f8e6aa]";
 
   return (
     <span className={`inline-flex shrink-0 items-center justify-center rounded-full border font-semibold ${tone} ${large ? "h-14 min-w-14 px-3 text-base" : "h-8 min-w-11 px-2 text-xs"}`}>
@@ -828,13 +836,13 @@ function scoreColorExpression() {
     ["linear"],
     ["get", "suitability_score"],
     70,
-    "#ef4444",
+    "#8b5cf6",
     80,
-    "#f59e0b",
+    "#d6b85c",
     86,
-    "#22d3ee",
+    "#2dd4bf",
     90,
-    "#6366f1",
+    "#e0e7ff",
   ] as maplibregl.ExpressionSpecification;
 }
 
@@ -862,7 +870,7 @@ function fitToSites(map: Map | null, features: SiteFeature[]) {
   map.fitBounds(bounds, {
     duration: 900,
     maxZoom: features.length > 1 ? 15.4 : 16.2,
-    padding: { bottom: 56, left: 56, right: 360, top: 56 },
+    padding: { bottom: 56, left: 420, right: 72, top: 56 },
   });
 }
 
@@ -879,7 +887,7 @@ function flyToSite(map: Map | null, feature: SiteFeature) {
   map.fitBounds(bounds, {
     duration: 780,
     maxZoom: 17,
-    padding: { bottom: 140, left: 140, right: 420, top: 140 },
+    padding: { bottom: 140, left: 420, right: 120, top: 140 },
   });
 }
 

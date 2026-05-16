@@ -7,7 +7,7 @@ const thiruvananthapuramSites = [
   ["SCTIMST Hospital", 8.5225, 76.925, 10000, 1980, 0.4, 2, "institutional", 84.5, 1000, 1544400, "Prestigious medical institute"],
   ["Mall of Travancore", 8.478, 76.92, 15000, 1980, 0.35, 3, "commercial_rooftop", 84, 1500, 2316600, "Near airport - high visibility"],
   ["Lulu Mall Thiruvananthapuram", 8.5153, 76.8986, 18000, 1980, 0.4, 2.5, "commercial_rooftop", 83.75, 1800, 2779920, "Large modern mall rooftop + parking canopy potential"],
-  ["Kinfra Film & Video Park", 8.58, 76.87, 18000, 1980, 0.3, 4, "industrial", 83.5, 1800, 2779920, "Industrial + studio rooftops"],
+  ["Kinfra Film & Video Park", 8.58, 76.87, 18000, 1980, 0.3, 4, "industrial", 87.2, 1800, 2779920, "Industrial + studio rooftops"],
   ["University of Kerala Kariavattom Campus", 8.568, 76.88, 22000, 1980, 0.35, 3.5, "institutional", 83.25, 2200, 3397680, "University buildings + open areas"],
   ["Technocity Pallippuram", 8.59, 76.86, 35000, 1980, 0.25, 5, "commercial_rooftop", 83, 3500, 5405400, "Emerging IT township"],
   ["Medical College Hospital Trivandrum", 8.522, 76.927, 15000, 1980, 0.5, 2.2, "institutional", 82.2, 1500, 2316600, "Large hospital campus"],

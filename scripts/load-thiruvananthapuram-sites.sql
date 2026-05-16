@@ -99,7 +99,7 @@ INSERT INTO solar_sites (
     'Kinfra Film & Video Park', 'Thiruvananthapuram', 'Kerala', 'India', 'industrial',
     'public_industrial', 'Kinfra Film and Video Park, Kazhakootam',
     22500, 18000, 1980, 0.30, 4.0, 4, 7.0, 0.80,
-    83.50, 1800, 2779920, 'user_mvp_seed', 'needs_ai_validation',
+    87.20, 1800, 2779920, 'user_mvp_seed', 'needs_ai_validation',
     'Industrial + studio rooftops',
     ST_MakeEnvelope(76.8689, 8.5789, 76.8711, 8.5811, 4326)
 ),
