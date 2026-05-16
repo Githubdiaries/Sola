@@ -16,7 +16,7 @@ Query parameters:
 Example:
 
 ```bash
-curl "http://localhost:8000/api/v1/sites?city=Bengaluru&min_area_sqm=8000&min_score=80"
+curl "http://localhost:8000/api/v1/sites?city=Kochi&min_area_sqm=8000&min_score=80"
 ```
 
 ## `POST /api/v1/analysis/suitability`

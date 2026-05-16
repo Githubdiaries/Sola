@@ -33,13 +33,13 @@ textarea {
 }
 
 .solarforge-range {
-  accent-color: #a3ff12;
+  accent-color: #17a44a;
 }
 
 .solarforge-range::-webkit-slider-runnable-track {
   height: 8px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #facc15, #a3ff12, #22c55e);
+  background: linear-gradient(90deg, #cf3f35, #c8892b, #c8cf34, #17a44a);
 }
 
 .solarforge-range::-webkit-slider-thumb {
@@ -49,7 +49,7 @@ textarea {
 .solarforge-range::-moz-range-track {
   height: 8px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #facc15, #a3ff12, #22c55e);
+  background: linear-gradient(90deg, #cf3f35, #c8892b, #c8cf34, #17a44a);
 }
 
 *::-webkit-scrollbar {

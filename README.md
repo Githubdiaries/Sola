@@ -44,7 +44,7 @@ Sola/
   - flood risk weight
   - grid proximity weight
 - Sample PostGIS data loads automatically on first database startup.
-- Thiruvananthapuram MVP candidate sites are included in `scripts/load-thiruvananthapuram-sites.sql` and `data/sample/thiruvananthapuram_solar_sites.csv`.
+- Kerala MVP candidate sites are included in `scripts/load-thiruvananthapuram-sites.sql` and `data/sample/thiruvananthapuram_solar_sites.csv`.
 - Structured JSON logging and defensive API error handling.
 - Data model includes AI-detection status fields for later roof segmentation workflows.
 - Grafana provisioning is ready for operational dashboards.
@@ -79,7 +79,7 @@ curl http://localhost:8000/health
 5. Query ranked solar sites:
 
 ```bash
-curl "http://localhost:8000/api/v1/sites?city=Bengaluru&min_area_sqm=8000&min_score=80"
+curl "http://localhost:8000/api/v1/sites?city=Kochi&min_area_sqm=8000&min_score=80"
 ```
 
 6. Open service UIs:
@@ -115,7 +115,7 @@ Filter by project viability:
 curl "http://localhost:8000/api/v1/sites?min_score=85&min_area_sqm=7000"
 ```
 
-View the Thiruvananthapuram MVP pipeline:
+View the Kerala MVP pipeline:
 
 ```bash
 curl "http://localhost:8000/api/v1/sites?city=Thiruvananthapuram&limit=50"

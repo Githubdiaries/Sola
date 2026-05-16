@@ -41,19 +41,21 @@ type Filters = {
 };
 
 const numberFormatter = new Intl.NumberFormat("en-US");
-const keralaCities = [
+const cityOrder = [
   "Thiruvananthapuram",
-  "Kollam",
-  "Pathanamthitta",
-  "Alappuzha",
-  "Kottayam",
   "Kochi",
+  "Cochin",
+  "Kalamassery",
   "Thrissur",
   "Palakkad",
-  "Malappuram",
   "Kozhikode",
-  "Kalpetta",
   "Kannur",
+  "Malappuram",
+  "Kollam",
+  "Kottayam",
+  "Alappuzha",
+  "Pathanamthitta",
+  "Kalpetta",
   "Kasaragod",
 ];
 
@@ -125,10 +127,19 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
   });
 
   const scopedFeatures = useMemo(
-    () => sites.features.filter((site) => keralaCities.includes(site.properties.city)),
+    () =>
+      sites.features.filter(
+        (site) => site.properties.state === "Kerala" || cityOrder.includes(site.properties.city),
+      ),
     [sites.features],
   );
-  const cities = keralaCities;
+  const cities = useMemo(
+    () =>
+      Array.from(new Set(scopedFeatures.map((site) => site.properties.city))).sort(
+        (a, b) => cityOrder.indexOf(a) - cityOrder.indexOf(b),
+      ),
+    [scopedFeatures],
+  );
   const assetTypes = useMemo(
     () => Array.from(new Set(scopedFeatures.map((site) => site.properties.asset_type))).sort(),
     [scopedFeatures],
@@ -189,6 +200,12 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
     filteredFeatures.length > 0
       ? filteredFeatures.reduce((sum, site) => sum + site.properties.suitability_score, 0) / filteredFeatures.length
       : 0;
+
+  useEffect(() => {
+    if (cities.length > 0 && !cities.includes(filters.city)) {
+      setFilters((current) => ({ ...current, city: cities[0] }));
+    }
+  }, [cities, filters.city]);
 
   useEffect(() => {
     if (!filteredFeatures.length) {
@@ -272,28 +289,18 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
 
       map.addLayer({
         id: "solar-site-points",
-        paint: {
-          "circle-color": scoreColorExpression(),
-          "circle-opacity": 0.98,
-          "circle-radius": ["case", ["==", ["get", "id"], selectedIdRef.current], 14, 11],
-          "circle-stroke-color": "#f8fafd",
-          "circle-stroke-width": 1.8,
-        },
-        source: "solar-site-points",
-        type: "circle",
-      });
-
-      map.addLayer({
-        id: "solar-site-score-labels",
         layout: {
-          "text-field": ["to-string", ["round", ["get", "suitability_score"]]],
-          "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
-          "text-size": 10,
+          "text-field": "📍",
+          "text-size": ["case", ["==", ["get", "id"], selectedIdRef.current], 34, 28],
+          "text-allow-overlap": true,
+          "text-anchor": "bottom",
+          "text-offset": [0, 0.35],
         },
         paint: {
-          "text-color": "#05060f",
-          "text-halo-color": "rgba(248,250,253,0.18)",
-          "text-halo-width": 0.6,
+          "text-color": scoreColorExpression(),
+          "text-halo-color": "#f8fafd",
+          "text-halo-width": 0.7,
+          "text-opacity": 0.98,
         },
         source: "solar-site-points",
         type: "symbol",
@@ -391,8 +398,7 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
             </div>
 
             <div className="relative h-[760px] overflow-hidden rounded-2xl border border-[#1e2538] bg-[#0c0f1c] shadow-[0_28px_90px_rgba(0,0,0,0.42)] lg:h-[calc(100vh-142px)]">
-                <MapCanvas
-                avgScore={avgScore}
+              <MapCanvas
                 hoveredSite={hoveredSite}
                 hoverPosition={hoverPosition}
                 mapContainerRef={mapContainerRef}
@@ -593,28 +599,24 @@ function FilterSidebar({
 }
 
 function MapCanvas({
-  avgScore,
   hoveredSite,
   hoverPosition,
   mapContainerRef,
   onFit,
   onZoomDelta,
 }: {
-  avgScore: number;
   hoveredSite: SiteFeature | null;
   hoverPosition: { x: number; y: number } | null;
   mapContainerRef: React.RefObject<HTMLDivElement | null>;
   onFit: () => void;
   onZoomDelta: (delta: number) => void;
 }) {
-  const legendPosition = `${Math.max(0, Math.min(100, ((avgScore - 70) / 20) * 100))}%`;
-
   return (
     <div className="absolute inset-0">
       <div ref={mapContainerRef} className="absolute inset-0" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(5,6,15,0.34),transparent_28%,rgba(5,6,15,0.18)_100%),radial-gradient(circle_at_50%_20%,transparent_0%,rgba(5,6,15,0.24)_68%,rgba(5,6,15,0.6)_100%)]" />
 
-      <div className="absolute right-4 top-[118px] z-10 grid grid-cols-2 overflow-hidden rounded-xl border border-[#1e2538] bg-[#0c0f1c]/86 shadow-2xl backdrop-blur">
+      <div className="absolute bottom-4 left-4 z-10 grid grid-cols-2 overflow-hidden rounded-xl border border-[#1e2538] bg-[#0c0f1c]/86 shadow-2xl backdrop-blur">
         <button className="grid h-10 w-10 place-items-center text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={() => onZoomDelta(0.75)} type="button">
           <Plus size={16} />
         </button>
@@ -624,24 +626,6 @@ function MapCanvas({
         <button className="col-span-2 grid h-10 place-items-center border-t border-[#1e2538] text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={onFit} type="button">
           <Layers size={16} />
         </button>
-      </div>
-
-      <div className="absolute bottom-4 left-4 z-10 w-[230px] rounded-xl border border-[#1e2538] bg-[#0c0f1c]/88 p-3 shadow-2xl backdrop-blur md:left-[380px]">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-xs font-medium text-[#f8fafd]">Suitability score</span>
-          <span className="text-[11px] text-[#a3b4d0]">live</span>
-        </div>
-        <div className="relative h-2 rounded-full bg-gradient-to-r from-[#facc15] via-[#a3ff12] to-[#22c55e]">
-          <span
-            className="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#05060f] bg-[#a3ff12] shadow-[0_0_18px_rgba(163,255,18,0.65)]"
-            style={{ left: legendPosition }}
-          />
-        </div>
-        <div className="mt-2 flex justify-between text-[11px] text-[#a3b4d0]">
-          <span>Review</span>
-          <span>Good</span>
-          <span>Best</span>
-        </div>
       </div>
 
       {hoveredSite && hoverPosition ? (
@@ -679,7 +663,7 @@ function MapSummary({
   totalCapacityKw: number;
 }) {
   return (
-    <div className="pointer-events-none absolute right-4 top-4 z-10 hidden w-[420px] grid-cols-3 gap-2 md:grid">
+    <div className="pointer-events-none absolute right-4 top-4 z-10 hidden w-[318px] grid-cols-3 gap-1.5 md:grid">
       <SummaryTile label="Sites" value={`${count}`} />
       <SummaryTile label="Avg Score" value={`${avgScore.toFixed(0)}%`} />
       <SummaryTile label="Capacity" value={`${formatCompact(totalCapacityKw)} kWp`} />
@@ -690,9 +674,9 @@ function MapSummary({
 
 function SummaryTile({ className = "", label, value }: { className?: string; label: string; value: string }) {
   return (
-    <div className={`rounded-xl border border-[#1e2538] bg-[#0c0f1c]/80 px-3 py-2 shadow-xl backdrop-blur ${className}`}>
-      <p className="text-[10px] text-[#a3b4d0]">{label}</p>
-      <p className="mt-0.5 text-sm font-semibold text-[#f8fafd]">{value}</p>
+    <div className={`rounded-lg border border-[#1e2538] bg-[#0c0f1c]/78 px-2.5 py-1.5 shadow-xl backdrop-blur ${className}`}>
+      <p className="text-[9px] leading-none text-[#a3b4d0]">{label}</p>
+      <p className="mt-1 text-xs font-semibold leading-none text-[#f8fafd]">{value}</p>
     </div>
   );
 }
@@ -700,7 +684,6 @@ function SummaryTile({ className = "", label, value }: { className?: string; lab
 function DetailPanel({ onClose, site }: { onClose: () => void; site: SiteFeature }) {
   const properties = site.properties;
   const capacityKw = properties.estimated_capacity_kw ?? properties.usable_area_sqm / 10;
-  const floodSafety = Math.round((1 - properties.flood_risk_score) * 100);
   const cityLine = [properties.city, properties.state].filter(Boolean).join(", ");
 
   return (
@@ -725,10 +708,6 @@ function DetailPanel({ onClose, site }: { onClose: () => void; site: SiteFeature
           <InfoMetric label="Grid" value={`${properties.grid_distance_km.toFixed(1)} km`} />
         </div>
 
-        <div className="mt-3 divide-y divide-[#1e2538] rounded-xl border border-[#1e2538] bg-[#141927]/64">
-          <DetailRow label="Flood resilience" value={`${floodSafety}%`} />
-          <DetailRow label="Solar exposure" value={`${formatNumber(properties.annual_ghi_kwh_m2)} kWh/m2`} />
-        </div>
       </aside>
 
       <aside className="absolute inset-x-3 bottom-3 z-20 rounded-2xl border border-[#1e2538] bg-[#0c0f1c]/94 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.5)] backdrop-blur-xl md:hidden">
@@ -751,15 +730,6 @@ function DetailPanel({ onClose, site }: { onClose: () => void; site: SiteFeature
         </div>
       </aside>
     </>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4 px-3 py-2.5 text-sm">
-      <span className="text-[#a3b4d0]">{label}</span>
-      <span className="text-right font-medium text-[#f8fafd]">{value}</span>
-    </div>
   );
 }
 
@@ -830,11 +800,13 @@ function scoreColorExpression() {
     ["linear"],
     ["get", "suitability_score"],
     70,
-    "#facc15",
-    82,
-    "#a3ff12",
+    "#cf3f35",
+    78,
+    "#c8892b",
+    84,
+    "#c8cf34",
     90,
-    "#22c55e",
+    "#17a44a",
   ] as maplibregl.ExpressionSpecification;
 }
 
@@ -846,7 +818,7 @@ function updateSelectionPaint(map: Map, selectedId: string) {
   map.setPaintProperty("solar-sites-fill", "fill-opacity", ["case", ["==", ["get", "id"], selectedId], 0.45, 0.26]);
   map.setPaintProperty("solar-sites-line", "line-width", ["case", ["==", ["get", "id"], selectedId], 3.4, 1.8]);
   map.setPaintProperty("solar-site-glow", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 27, 18]);
-  map.setPaintProperty("solar-site-points", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 14, 11]);
+  map.setLayoutProperty("solar-site-points", "text-size", ["case", ["==", ["get", "id"], selectedId], 34, 28]);
 }
 
 function fitToSites(map: Map | null, features: SiteFeature[]) {
