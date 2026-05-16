@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl, { type Map, type MapLayerMouseEvent } from "maplibre-gl";
-import { CheckCircle2, Gauge, GripHorizontal, MapPin, Minus, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { CheckCircle2, Gauge, GripHorizontal, MapPin, SlidersHorizontal } from "lucide-react";
 
 type SiteProperties = {
   id: string;
@@ -33,6 +33,13 @@ type Filters = {
 };
 
 const numberFormatter = new Intl.NumberFormat("en-US");
+const regionCities = ["Thiruvananthapuram", "Bengaluru", "Chennai"];
+const regionLabels: Record<string, string> = {
+  all: "South India",
+  Thiruvananthapuram: "Kerala",
+  Bengaluru: "Bengaluru",
+  Chennai: "Chennai",
+};
 
 const emptyCollection: SiteCollection = {
   type: "FeatureCollection",
@@ -72,26 +79,26 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
   const mapRef = useRef<Map | null>(null);
   const [selectedSite, setSelectedSite] = useState<SiteFeature | null>(sites.features[0] ?? null);
   const [hoveredSite, setHoveredSite] = useState<SiteFeature | null>(null);
-  const [mapZoom, setMapZoom] = useState(11);
+  const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number } | null>(null);
   const [rankedHeight, setRankedHeight] = useState(340);
   const [filters, setFilters] = useState<Filters>({
-    city: sites.features.some((site) => site.properties.city === "Thiruvananthapuram") ? "Thiruvananthapuram" : "all",
+    city: "all",
     minScore: 0,
     minArea: 0,
     assetType: "all",
     query: "",
   });
 
-  const cities = useMemo(() => Array.from(new Set(sites.features.map((site) => site.properties.city))).sort(), [sites.features]);
-  const assetTypes = useMemo(
-    () => Array.from(new Set(sites.features.map((site) => site.properties.asset_type))).sort(),
+  const scopedFeatures = useMemo(
+    () => sites.features.filter((site) => regionCities.includes(site.properties.city)),
     [sites.features],
   );
+  const cities = useMemo(() => regionCities.filter((city) => scopedFeatures.some((site) => site.properties.city === city)), [scopedFeatures]);
 
   const filteredFeatures = useMemo(() => {
     const query = filters.query.trim().toLowerCase();
 
-    return sites.features.filter((site) => {
+    return scopedFeatures.filter((site) => {
       const properties = site.properties;
       const matchesQuery =
         !query ||
@@ -107,7 +114,7 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
         (filters.assetType === "all" || properties.asset_type === filters.assetType)
       );
     });
-  }, [filters, sites.features]);
+  }, [filters, scopedFeatures]);
 
   const filteredCollection = useMemo<SiteCollection>(
     () => ({
@@ -165,7 +172,6 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
     });
 
     mapRef.current = map;
-    map.on("zoom", () => setMapZoom(Number(map.getZoom().toFixed(2))));
 
     map.on("load", () => {
       map.addSource("solar-sites", {
@@ -255,6 +261,7 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
         const feature = event.features?.[0] as SiteFeature | PointFeature | undefined;
         const site = filteredFeatures.find((candidate) => candidate.properties.id === feature?.properties.id);
         setHoveredSite(site ?? null);
+        setHoverPosition(site ? { x: event.point.x, y: event.point.y } : null);
         map.getCanvas().style.cursor = site ? "pointer" : "";
       };
 
@@ -264,10 +271,12 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
       map.on("mousemove", "solar-site-points", hoverFeature);
       map.on("mouseleave", "solar-sites-fill", () => {
         setHoveredSite(null);
+        setHoverPosition(null);
         map.getCanvas().style.cursor = "";
       });
       map.on("mouseleave", "solar-site-points", () => {
         setHoveredSite(null);
+        setHoverPosition(null);
         map.getCanvas().style.cursor = "";
       });
 
@@ -340,7 +349,6 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
               totalArea={totalArea}
             />
             <ControlPanel
-              assetTypes={assetTypes}
               cities={cities}
               filters={filters}
               setFilters={setFilters}
@@ -358,21 +366,28 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
           </aside>
 
           <section className="grid min-h-[720px] min-w-0 grid-rows-[auto_minmax(520px,1fr)] gap-4 xl:h-full xl:min-h-0">
-            <div className="grid gap-3 md:grid-cols-4">
-              <Metric label="Deployability" value={`${avgScore.toFixed(1)}%`} tone="green" />
-              <Metric label="Usable Area" value={`${formatCompact(totalArea)} m2`} />
-              <Metric label="Est. DC" value={`${formatCompact(totalCapacityKw)} kW`} />
-              <Metric label="Annual Yield" value={`${formatCompact(totalAnnualMwh)} MWh`} />
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="rounded-[28px] border border-white/10 bg-[#081610]/86 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-emerald-100/45">Map view</p>
+                <h2 className="mt-2 text-2xl font-semibold text-white">Rank roofs by deployability.</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50/62">
+                  Area, solar exposure, flood risk, and grid proximity in one South India workspace.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Metric label="Score" value={`${avgScore.toFixed(1)}%`} tone="green" />
+                <Metric label="Area" value={`${formatCompact(totalArea)} m2`} />
+                <Metric label="DC" value={`${formatCompact(totalCapacityKw)} kW`} />
+                <Metric label="Yield" value={`${formatCompact(totalAnnualMwh)} MWh`} />
+              </div>
             </div>
 
             <section className="min-h-[520px] overflow-hidden rounded-[30px] border border-white/10 bg-[#07140f] shadow-2xl shadow-black/35">
               <MapWorkspace
                 hoveredSite={hoveredSite}
+                hoverPosition={hoverPosition}
                 mapContainerRef={mapContainerRef}
                 onFit={() => fitToSites(mapRef.current, filteredFeatures)}
-                onZoomChange={(zoom) => setMapZoomLevel(mapRef.current, zoom)}
-                onZoomDelta={(delta) => setMapZoomLevel(mapRef.current, mapZoom + delta)}
-                zoom={mapZoom}
               />
             </section>
           </section>
@@ -403,13 +418,11 @@ function HeroPanel({
     <section className="rounded-[28px] border border-white/10 bg-[#081610]/88 p-4 shadow-2xl shadow-black/25">
       <p className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs text-emerald-100">
         <CheckCircle2 size={14} />
-        MVP territory ready
+        South India MVP
       </p>
-      <h2 className="mt-4 text-2xl font-semibold leading-tight text-white">
-        Find viable rooftops before the first sales call.
-      </h2>
+      <h2 className="mt-4 text-2xl font-semibold leading-tight text-white">Solar sites worth calling first.</h2>
       <p className="mt-3 text-sm leading-6 text-emerald-50/62">
-        Rank commercial roofs by area, solar exposure, flood risk, and grid proximity in one map-first workspace.
+        Kerala, Bengaluru, and Chennai ranked for fast rooftop qualification.
       </p>
       <div className="mt-4 grid grid-cols-3 gap-2">
         <MiniStat label="Top" value={`${topScore.toFixed(0)}%`} />
@@ -424,12 +437,10 @@ function HeroPanel({
 }
 
 function ControlPanel({
-  assetTypes,
   cities,
   filters,
   setFilters,
 }: {
-  assetTypes: string[];
   cities: string[];
   filters: Filters;
   setFilters: React.Dispatch<React.SetStateAction<Filters>>;
@@ -439,98 +450,40 @@ function ControlPanel({
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-medium text-white">
           <SlidersHorizontal size={16} />
-          Filters
+          Scope
         </div>
         <button
           className="text-xs text-emerald-200/70 hover:text-emerald-100"
-          onClick={() => setFilters((current) => ({ ...current, minScore: 0, minArea: 0, assetType: "all", query: "" }))}
+          onClick={() => setFilters((current) => ({ ...current, city: "all", minScore: 0, minArea: 0, assetType: "all", query: "" }))}
           type="button"
         >
           Reset
         </button>
       </div>
 
-      <label className="relative block">
-        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-emerald-100/40" size={15} />
-        <input
-          className="h-11 w-full rounded-2xl border border-white/10 bg-black/20 pl-9 pr-3 text-sm text-white outline-none placeholder:text-emerald-100/35 focus:border-emerald-300/40"
-          onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))}
-          placeholder="Search sites"
-          value={filters.query}
-        />
-      </label>
-
-      <div className="mt-4 space-y-3">
-        <SelectField
-          label="City"
-          onChange={(value) => setFilters((current) => ({ ...current, city: value }))}
-          options={[["all", "All cities"], ...cities.map((city) => [city, city] as [string, string])]}
-          value={filters.city}
-        />
-        <SelectField
-          label="Asset type"
-          onChange={(value) => setFilters((current) => ({ ...current, assetType: value }))}
-          options={[["all", "All types"], ...assetTypes.map((type) => [type, type.replaceAll("_", " ")] as [string, string])]}
-          value={filters.assetType}
-        />
-        <SelectField
-          label="Minimum score"
-          onChange={(value) => setFilters((current) => ({ ...current, minScore: Number(value) }))}
-          options={[
-            ["0", "Any score"],
-            ["75", "75%+"],
-            ["85", "85%+"],
-            ["90", "90%+"],
-          ]}
-          value={`${filters.minScore}`}
-        />
-        <SelectField
-          label="Minimum area"
-          onChange={(value) => setFilters((current) => ({ ...current, minArea: Number(value) }))}
-          options={[
-            ["0", "Any area"],
-            ["8000", "8,000 m2+"],
-            ["10000", "10,000 m2+"],
-            ["20000", "20,000 m2+"],
-          ]}
-          value={`${filters.minArea}`}
-        />
+      <div className="grid gap-2">
+        {["all", ...cities].map((city) => (
+          <button
+            className={`flex h-10 items-center justify-between rounded-2xl border px-3 text-left text-sm transition ${
+              filters.city === city
+                ? "border-emerald-300/45 bg-emerald-300/12 text-white"
+                : "border-white/10 bg-black/14 text-emerald-100/62 hover:border-emerald-300/25"
+            }`}
+            key={city}
+            onClick={() => setFilters((current) => ({ ...current, city, minArea: 0, assetType: "all", query: "" }))}
+            type="button"
+          >
+            <span>{regionLabels[city] ?? city}</span>
+            <span className="text-xs text-emerald-100/42">{city === "all" ? "3 regions" : "city"}</span>
+          </button>
+        ))}
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <QuickButton label="High score" onClick={() => setFilters((current) => ({ ...current, minScore: 85 }))} />
-        <QuickButton label="Large roof" onClick={() => setFilters((current) => ({ ...current, minArea: 10000 }))} />
+        <QuickButton label="All scores" onClick={() => setFilters((current) => ({ ...current, minScore: 0 }))} />
+        <QuickButton label="85+" onClick={() => setFilters((current) => ({ ...current, minScore: 85 }))} />
       </div>
     </section>
-  );
-}
-
-function SelectField({
-  label,
-  onChange,
-  options,
-  value,
-}: {
-  label: string;
-  onChange: (value: string) => void;
-  options: Array<[string, string]>;
-  value: string;
-}) {
-  return (
-    <label className="block">
-      <span className="text-xs text-emerald-100/50">{label}</span>
-      <select
-        className="mt-1 h-10 w-full rounded-2xl border border-white/10 bg-[#0b1b14] px-3 text-sm text-emerald-50 outline-none focus:border-emerald-300/40"
-        onChange={(event) => onChange(event.target.value)}
-        value={value}
-      >
-        {options.map(([optionValue, labelText]) => (
-          <option key={optionValue} value={optionValue}>
-            {labelText}
-          </option>
-        ))}
-      </select>
-    </label>
   );
 }
 
@@ -625,28 +578,19 @@ function RankedList({
 
 function MapWorkspace({
   hoveredSite,
+  hoverPosition,
   mapContainerRef,
   onFit,
-  onZoomChange,
-  onZoomDelta,
-  zoom,
 }: {
   hoveredSite: SiteFeature | null;
+  hoverPosition: { x: number; y: number } | null;
   mapContainerRef: React.RefObject<HTMLDivElement | null>;
   onFit: () => void;
-  onZoomChange: (zoom: number) => void;
-  onZoomDelta: (delta: number) => void;
-  zoom: number;
 }) {
   return (
     <div className="relative h-full min-h-[520px]">
       <div ref={mapContainerRef} className="absolute inset-0" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,transparent_0%,rgba(6,17,13,0.28)_72%,rgba(6,17,13,0.66)_100%)]" />
-
-      <div className="absolute left-4 top-4 z-10 rounded-2xl border border-white/10 bg-[#07140f]/86 px-4 py-3 shadow-2xl backdrop-blur">
-        <p className="text-xs uppercase tracking-[0.2em] text-emerald-100/45">Map view</p>
-        <h3 className="mt-1 text-sm font-medium text-white">Deployability surface</h3>
-      </div>
 
       <button
         className="absolute right-4 top-4 z-10 inline-flex h-10 items-center gap-2 rounded-2xl border border-white/10 bg-[#07140f]/86 px-4 text-sm text-emerald-50 backdrop-blur transition hover:border-emerald-300/35"
@@ -656,41 +600,6 @@ function MapWorkspace({
         <MapPin size={15} />
         Fit city
       </button>
-
-      <div className="absolute right-4 top-16 z-10 w-[214px] rounded-2xl border border-white/10 bg-[#07140f]/90 p-3 shadow-2xl backdrop-blur">
-        <div className="mb-2 flex items-center justify-between text-xs">
-          <span className="text-emerald-100/50">Zoom</span>
-          <span className="font-medium text-emerald-100">{zoom.toFixed(1)}x</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            aria-label="Zoom out slightly"
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-white/10 bg-black/22 text-emerald-50 transition hover:border-emerald-300/35 hover:bg-emerald-300/10"
-            onClick={() => onZoomDelta(-0.35)}
-            type="button"
-          >
-            <Minus size={15} />
-          </button>
-          <input
-            aria-label="Map zoom level"
-            className="sola-zoom-slider min-w-0 flex-1"
-            max={17}
-            min={9}
-            onChange={(event) => onZoomChange(Number(event.target.value))}
-            step={0.1}
-            type="range"
-            value={zoom}
-          />
-          <button
-            aria-label="Zoom in slightly"
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-white/10 bg-black/22 text-emerald-50 transition hover:border-emerald-300/35 hover:bg-emerald-300/10"
-            onClick={() => onZoomDelta(0.35)}
-            type="button"
-          >
-            <Plus size={15} />
-          </button>
-        </div>
-      </div>
 
       <div className="absolute bottom-4 left-4 z-10 w-[240px] rounded-2xl border border-white/10 bg-[#07140f]/90 p-4 shadow-2xl backdrop-blur">
         <div className="mb-3 flex items-center justify-between">
@@ -705,11 +614,18 @@ function MapWorkspace({
         </div>
       </div>
 
-      {hoveredSite ? (
-        <div className="absolute bottom-4 right-4 z-10 w-[280px] rounded-2xl border border-white/10 bg-[#07140f]/92 p-4 shadow-2xl backdrop-blur">
+      {hoveredSite && hoverPosition ? (
+        <div
+          className="pointer-events-none absolute z-20 w-[260px] rounded-2xl border border-emerald-300/25 bg-[#07140f]/94 p-3 shadow-2xl shadow-black/40 backdrop-blur"
+          style={{
+            left: hoverPosition.x,
+            top: hoverPosition.y,
+            transform: hoverPosition.x > 520 ? "translate(-104%, -46%)" : "translate(18px, -46%)",
+          }}
+        >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs text-emerald-100/50">Hovered site</p>
+              <p className="text-xs text-emerald-100/50">Site intelligence</p>
               <h4 className="mt-1 text-sm font-medium text-white">{hoveredSite.properties.name}</h4>
             </div>
             <ScoreChip value={hoveredSite.properties.suitability_score} />
@@ -917,15 +833,6 @@ function updateSelectionPaint(map: Map, selectedId: string) {
   map.setPaintProperty("solar-site-points", "circle-stroke-width", ["case", ["==", ["get", "id"], selectedId], 2.8, 1.3]);
 }
 
-function setMapZoomLevel(map: Map | null, zoom: number) {
-  if (!map) {
-    return;
-  }
-
-  const clampedZoom = Math.max(9, Math.min(17, zoom));
-  map.easeTo({ zoom: clampedZoom, duration: 220 });
-}
-
 function fitToSites(map: Map | null, features: SiteFeature[]) {
   if (!map) {
     return;
@@ -937,8 +844,8 @@ function fitToSites(map: Map | null, features: SiteFeature[]) {
   }
 
   map.fitBounds(bounds, {
-    padding: { top: 76, right: 76, bottom: 76, left: 76 },
-    maxZoom: 13.5,
+    padding: { top: 52, right: 52, bottom: 52, left: 52 },
+    maxZoom: features.length > 1 ? 9.2 : 13.2,
     duration: 800,
   });
 }
