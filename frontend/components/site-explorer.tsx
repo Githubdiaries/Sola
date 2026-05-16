@@ -2,7 +2,18 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl, { type Map, type MapLayerMouseEvent } from "maplibre-gl";
-import { CheckCircle2, Gauge, GripHorizontal, MapPin, SlidersHorizontal } from "lucide-react";
+import {
+  Bell,
+  ChevronDown,
+  FileText,
+  Layers,
+  Minus,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  X,
+  Zap,
+} from "lucide-react";
 
 type SiteProperties = {
   id: string;
@@ -25,18 +36,18 @@ type SiteCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon, SiteProperties>
 type PointFeature = GeoJSON.Feature<GeoJSON.Point, SiteProperties>;
 
 type Filters = {
+  assetTypes: string[];
   city: string;
-  minScore: number;
   minArea: number;
-  assetType: string;
+  minScore: number;
   query: string;
 };
 
 const numberFormatter = new Intl.NumberFormat("en-US");
 const regionCities = ["Thiruvananthapuram", "Bengaluru", "Chennai"];
-const regionLabels: Record<string, string> = {
-  all: "South India",
-  Thiruvananthapuram: "Kerala",
+const cityLabels: Record<string, string> = {
+  all: "All regions",
+  Thiruvananthapuram: "Thiruvananthapuram",
   Bengaluru: "Bengaluru",
   Chennai: "Chennai",
 };
@@ -49,12 +60,18 @@ const emptyCollection: SiteCollection = {
 const mapStyle: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
-    cartoDark: {
+    imagery: {
+      type: "raster",
+      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+      tileSize: 256,
+      attribution: "Esri, Maxar, Earthstar Geographics",
+    },
+    labels: {
       type: "raster",
       tiles: [
-        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+        "https://a.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png",
+        "https://b.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png",
+        "https://c.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png",
       ],
       tileSize: 256,
       attribution: "OpenStreetMap contributors, CARTO",
@@ -62,13 +79,23 @@ const mapStyle: maplibregl.StyleSpecification = {
   },
   layers: [
     {
-      id: "carto-dark",
+      id: "satellite",
       type: "raster",
-      source: "cartoDark",
+      source: "imagery",
       paint: {
-        "raster-opacity": 0.96,
-        "raster-contrast": 0.08,
-        "raster-saturation": -0.18,
+        "raster-brightness-max": 0.72,
+        "raster-brightness-min": 0.05,
+        "raster-contrast": -0.04,
+        "raster-opacity": 0.86,
+        "raster-saturation": -0.28,
+      },
+    },
+    {
+      id: "labels",
+      type: "raster",
+      source: "labels",
+      paint: {
+        "raster-opacity": 0.58,
       },
     },
   ],
@@ -77,15 +104,18 @@ const mapStyle: maplibregl.StyleSpecification = {
 export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection; usingSampleData: boolean }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
+  const featuresRef = useRef<SiteFeature[]>([]);
+  const selectedIdRef = useRef("");
   const [selectedSite, setSelectedSite] = useState<SiteFeature | null>(sites.features[0] ?? null);
   const [hoveredSite, setHoveredSite] = useState<SiteFeature | null>(null);
   const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number } | null>(null);
-  const [rankedHeight, setRankedHeight] = useState(340);
+  const [areaUnit, setAreaUnit] = useState<"sqm" | "sqft">("sqm");
+  const [detailOpen, setDetailOpen] = useState(true);
   const [filters, setFilters] = useState<Filters>({
-    city: "all",
-    minScore: 0,
+    assetTypes: [],
+    city: "Thiruvananthapuram",
     minArea: 0,
-    assetType: "all",
+    minScore: 70,
     query: "",
   });
 
@@ -94,6 +124,10 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
     [sites.features],
   );
   const cities = useMemo(() => regionCities.filter((city) => scopedFeatures.some((site) => site.properties.city === city)), [scopedFeatures]);
+  const assetTypes = useMemo(
+    () => Array.from(new Set(scopedFeatures.map((site) => site.properties.asset_type))).sort(),
+    [scopedFeatures],
+  );
 
   const filteredFeatures = useMemo(() => {
     const query = filters.query.trim().toLowerCase();
@@ -111,7 +145,7 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
         (filters.city === "all" || properties.city === filters.city) &&
         properties.suitability_score >= filters.minScore &&
         properties.usable_area_sqm >= filters.minArea &&
-        (filters.assetType === "all" || properties.asset_type === filters.assetType)
+        (filters.assetTypes.length === 0 || filters.assetTypes.includes(properties.asset_type))
       );
     });
   }, [filters, scopedFeatures]);
@@ -146,16 +180,28 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
     (sum, site) => sum + (site.properties.estimated_capacity_kw ?? site.properties.usable_area_sqm / 10),
     0,
   );
-  const totalAnnualMwh = filteredFeatures.reduce(
-    (sum, site) => sum + (site.properties.estimated_annual_generation_kwh ?? 0) / 1000,
-    0,
-  );
-  const nearGridCount = filteredFeatures.filter((site) => site.properties.grid_distance_km <= 2).length;
-  const lowFloodRiskCount = filteredFeatures.filter((site) => site.properties.flood_risk_score <= 0.35).length;
   const avgScore =
     filteredFeatures.length > 0
       ? filteredFeatures.reduce((sum, site) => sum + site.properties.suitability_score, 0) / filteredFeatures.length
       : 0;
+
+  useEffect(() => {
+    if (!filteredFeatures.length) {
+      setSelectedSite(null);
+      setDetailOpen(false);
+      return;
+    }
+
+    if (!selectedSite || !filteredFeatures.some((site) => site.properties.id === selectedSite.properties.id)) {
+      setSelectedSite(filteredFeatures[0]);
+      setDetailOpen(true);
+    }
+  }, [filteredFeatures, selectedSite]);
+
+  useEffect(() => {
+    featuresRef.current = filteredFeatures;
+    selectedIdRef.current = selectedId;
+  }, [filteredFeatures, selectedId]);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) {
@@ -163,103 +209,104 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
     }
 
     const map = new maplibregl.Map({
-      container: mapContainerRef.current,
-      style: mapStyle,
-      center: [76.9366, 8.5241],
-      zoom: 11,
-      pitch: 18,
       attributionControl: { compact: true },
+      bearing: -14,
+      center: [76.881, 8.558],
+      container: mapContainerRef.current,
+      pitch: 22,
+      style: mapStyle,
+      zoom: 15,
     });
 
     mapRef.current = map;
 
     map.on("load", () => {
       map.addSource("solar-sites", {
-        type: "geojson",
         data: filteredCollection,
+        type: "geojson",
       });
 
       map.addSource("solar-site-points", {
-        type: "geojson",
         data: pointCollection,
+        type: "geojson",
       });
 
       map.addLayer({
         id: "solar-sites-fill",
-        type: "fill",
-        source: "solar-sites",
         paint: {
           "fill-color": scoreColorExpression(),
-          "fill-opacity": ["case", ["==", ["get", "id"], selectedId], 0.64, 0.38],
+          "fill-opacity": ["case", ["==", ["get", "id"], selectedIdRef.current], 0.45, 0.26],
         },
+        source: "solar-sites",
+        type: "fill",
       });
 
       map.addLayer({
         id: "solar-sites-line",
-        type: "line",
-        source: "solar-sites",
         paint: {
+          "line-blur": 0.25,
           "line-color": scoreColorExpression(),
-          "line-width": ["case", ["==", ["get", "id"], selectedId], 4.6, 2.8],
-          "line-opacity": 0.95,
+          "line-opacity": 0.96,
+          "line-width": ["case", ["==", ["get", "id"], selectedIdRef.current], 3.4, 1.8],
         },
+        source: "solar-sites",
+        type: "line",
       });
 
       map.addLayer({
         id: "solar-site-glow",
-        type: "circle",
-        source: "solar-site-points",
         paint: {
-          "circle-radius": ["case", ["==", ["get", "id"], selectedId], 30, 18],
-          "circle-color": scoreColorExpression(),
-          "circle-opacity": 0.3,
           "circle-blur": 0.72,
+          "circle-color": scoreColorExpression(),
+          "circle-opacity": 0.26,
+          "circle-radius": ["case", ["==", ["get", "id"], selectedIdRef.current], 27, 18],
         },
+        source: "solar-site-points",
+        type: "circle",
       });
 
       map.addLayer({
         id: "solar-site-points",
-        type: "circle",
-        source: "solar-site-points",
         paint: {
-          "circle-radius": ["case", ["==", ["get", "id"], selectedId], 8, 5.5],
           "circle-color": scoreColorExpression(),
-          "circle-stroke-color": "#f8fafc",
-          "circle-stroke-width": ["case", ["==", ["get", "id"], selectedId], 2.8, 1.3],
           "circle-opacity": 0.98,
+          "circle-radius": ["case", ["==", ["get", "id"], selectedIdRef.current], 14, 11],
+          "circle-stroke-color": "#f8fafd",
+          "circle-stroke-width": 1.8,
         },
+        source: "solar-site-points",
+        type: "circle",
       });
 
       map.addLayer({
-        id: "solar-site-labels",
-        type: "symbol",
-        source: "solar-site-points",
+        id: "solar-site-score-labels",
         layout: {
-          "text-field": ["case", [">=", ["get", "suitability_score"], 85], ["get", "name"], ""],
-          "text-size": 11,
-          "text-offset": [0, 1.25],
-          "text-anchor": "top",
-          "text-max-width": 14,
+          "text-field": ["to-string", ["round", ["get", "suitability_score"]]],
+          "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+          "text-size": 10,
         },
         paint: {
-          "text-color": "#e5e7eb",
-          "text-halo-color": "#020617",
-          "text-halo-width": 1.4,
+          "text-color": "#05060f",
+          "text-halo-color": "rgba(248,250,253,0.18)",
+          "text-halo-width": 0.6,
         },
+        source: "solar-site-points",
+        type: "symbol",
       });
 
       const selectFeature = (event: MapLayerMouseEvent) => {
         const feature = event.features?.[0] as SiteFeature | PointFeature | undefined;
-        const site = filteredFeatures.find((candidate) => candidate.properties.id === feature?.properties.id);
+        const site = featuresRef.current.find((candidate) => candidate.properties.id === feature?.properties.id);
         if (site) {
           setSelectedSite(site);
+          setDetailOpen(true);
           flyToSite(map, site);
         }
       };
 
       const hoverFeature = (event: MapLayerMouseEvent) => {
         const feature = event.features?.[0] as SiteFeature | PointFeature | undefined;
-        const site = filteredFeatures.find((candidate) => candidate.properties.id === feature?.properties.id);
+        const site = featuresRef.current.find((candidate) => candidate.properties.id === feature?.properties.id);
         setHoveredSite(site ?? null);
         setHoverPosition(site ? { x: event.point.x, y: event.point.y } : null);
         map.getCanvas().style.cursor = site ? "pointer" : "";
@@ -318,321 +365,287 @@ export function SiteExplorer({ sites, usingSampleData }: { sites: SiteCollection
   }, [selectedId]);
 
   return (
-    <main className="min-h-screen bg-[#06110d] text-[#e9f7ef] xl:h-screen xl:overflow-hidden">
-      <div className="sola-grid-bg min-h-screen xl:h-screen">
-        <header className="mx-auto flex h-[72px] w-full max-w-[1560px] items-center justify-between gap-4 px-4 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-sm font-semibold text-emerald-100 shadow-[0_0_28px_rgba(52,211,153,0.16)]">
-              S
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm text-emerald-100/58">Sola / Urban Solar Deployability</p>
-              <h1 className="truncate text-base font-semibold text-white sm:text-xl">Thiruvananthapuram Solar Intel</h1>
-            </div>
-          </div>
+    <main className="min-h-screen bg-[#05060f] text-[#f8fafd]">
+      <div className="min-h-screen bg-[radial-gradient(circle_at_50%_-20%,rgba(99,102,241,0.13),transparent_34%),linear-gradient(180deg,#090b15_0%,#05060f_42%)]">
+        <TopNav query={filters.query} setQuery={(query) => setFilters((current) => ({ ...current, query }))} />
 
-          <div className="hidden items-center gap-2 text-xs text-emerald-50/70 lg:flex">
-            <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">PostGIS live</span>
-            <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">MapLibre token-free</span>
-            <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-emerald-100">
-              {filteredFeatures.length} active sites
-            </span>
-          </div>
-        </header>
+        <section className="mx-auto flex w-full max-w-[1480px] flex-col gap-4 px-4 pb-6 pt-5 lg:h-[calc(100vh-72px)] lg:flex-row lg:overflow-hidden">
+          <FilterSidebar
+            areaUnit={areaUnit}
+            assetTypes={assetTypes}
+            cities={cities}
+            filters={filters}
+            setAreaUnit={setAreaUnit}
+            setFilters={setFilters}
+          />
 
-        <section className="mx-auto grid w-full max-w-[1560px] gap-4 px-4 pb-4 sm:px-6 xl:h-[calc(100vh-72px)] xl:grid-cols-[310px_minmax(0,1fr)_350px]">
-          <aside className="flex min-h-0 flex-col gap-4 xl:h-full xl:overflow-auto xl:pr-1">
-            <HeroPanel
-              avgScore={avgScore}
-              nearGridCount={nearGridCount}
-              topScore={topSite?.properties.suitability_score ?? 0}
-              totalArea={totalArea}
-            />
-            <ControlPanel
-              cities={cities}
-              filters={filters}
-              setFilters={setFilters}
-            />
-            <RankedList
-              features={filteredFeatures}
-              height={rankedHeight}
-              onResize={setRankedHeight}
-              selectedId={selectedId}
-              onSelect={(site) => {
-                setSelectedSite(site);
-                flyToSite(mapRef.current, site);
-              }}
-            />
-          </aside>
-
-          <section className="grid min-h-[720px] min-w-0 grid-rows-[auto_minmax(520px,1fr)] gap-4 xl:h-full xl:min-h-0">
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px]">
-              <div className="rounded-[28px] border border-white/10 bg-[#081610]/86 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-emerald-100/45">Map view</p>
-                <h2 className="mt-2 text-2xl font-semibold text-white">Rank roofs by deployability.</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50/62">
-                  Area, solar exposure, flood risk, and grid proximity in one South India workspace.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Metric label="Score" value={`${avgScore.toFixed(1)}%`} tone="green" />
-                <Metric label="Area" value={`${formatCompact(totalArea)} m2`} />
-                <Metric label="DC" value={`${formatCompact(totalCapacityKw)} kW`} />
-                <Metric label="Yield" value={`${formatCompact(totalAnnualMwh)} MWh`} />
-              </div>
+          <section className="min-w-0 flex-1">
+            <div className="mb-3">
+              <p className="text-sm font-medium text-[#f8fafd]">SolarForge</p>
+              <p className="mt-1 text-sm text-[#a3b4d0]">Premium solar site intelligence platform</p>
             </div>
 
-            <section className="min-h-[520px] overflow-hidden rounded-[30px] border border-white/10 bg-[#07140f] shadow-2xl shadow-black/35">
-              <MapWorkspace
+            <div className="relative h-[760px] overflow-hidden rounded-2xl border border-[#1e2538] bg-[#0c0f1c] shadow-[0_28px_90px_rgba(0,0,0,0.42)] lg:h-[calc(100vh-142px)]">
+              <MapCanvas
                 hoveredSite={hoveredSite}
                 hoverPosition={hoverPosition}
                 mapContainerRef={mapContainerRef}
                 onFit={() => fitToSites(mapRef.current, filteredFeatures)}
+                onZoomDelta={(delta) => nudgeZoom(mapRef.current, delta)}
               />
-            </section>
+
+              <MapSummary avgScore={avgScore} count={filteredFeatures.length} totalArea={totalArea} totalCapacityKw={totalCapacityKw} />
+
+              {detailOpen && selectedSite ? (
+                <DetailPanel onClose={() => setDetailOpen(false)} site={selectedSite} usingSampleData={usingSampleData} />
+              ) : null}
+            </div>
           </section>
 
-          <aside className="flex min-h-0 flex-col gap-4 xl:h-full xl:overflow-auto xl:pl-1">
-            <SiteDetail site={selectedSite} />
-            <OpportunityCard lowFloodRiskCount={lowFloodRiskCount} nearGridCount={nearGridCount} topSite={topSite} />
-            <PipelineCard features={filteredFeatures} usingSampleData={usingSampleData} />
-          </aside>
+          <MobileRankedStrip
+            features={filteredFeatures}
+            onSelect={(site) => {
+              setSelectedSite(site);
+              setDetailOpen(true);
+              flyToSite(mapRef.current, site);
+            }}
+            selectedId={selectedId}
+            topSite={topSite}
+          />
         </section>
       </div>
     </main>
   );
 }
 
-function HeroPanel({
-  avgScore,
-  nearGridCount,
-  topScore,
-  totalArea,
-}: {
-  avgScore: number;
-  nearGridCount: number;
-  topScore: number;
-  totalArea: number;
-}) {
+function TopNav({ query, setQuery }: { query: string; setQuery: (query: string) => void }) {
   return (
-    <section className="rounded-[28px] border border-white/10 bg-[#081610]/88 p-4 shadow-2xl shadow-black/25">
-      <p className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs text-emerald-100">
-        <CheckCircle2 size={14} />
-        South India MVP
-      </p>
-      <h2 className="mt-4 text-2xl font-semibold leading-tight text-white">Solar sites worth calling first.</h2>
-      <p className="mt-3 text-sm leading-6 text-emerald-50/62">
-        Kerala, Bengaluru, and Chennai ranked for fast rooftop qualification.
-      </p>
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        <MiniStat label="Top" value={`${topScore.toFixed(0)}%`} />
-        <MiniStat label="Avg" value={`${avgScore.toFixed(0)}%`} />
-        <MiniStat label="Grid" value={`${nearGridCount}`} />
+    <header className="sticky top-0 z-30 border-b border-[#1e2538]/80 bg-[#05060f]/82 backdrop-blur-xl">
+      <div className="mx-auto flex h-[72px] w-full max-w-[1480px] items-center gap-4 px-4">
+        <div className="flex min-w-[210px] items-center gap-2">
+          <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#141927] text-[#818cf8]">
+            <Zap fill="currentColor" size={17} />
+          </span>
+          <span className="text-[18px] font-semibold tracking-[-0.02em] text-[#f8fafd]">SolarForge</span>
+        </div>
+
+        <label className="relative mx-auto hidden w-full max-w-[520px] md:block">
+          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#a3b4d0]/60" size={16} />
+          <input
+            className="h-11 w-full rounded-xl border border-[#1e2538] bg-[#0c0f1c] pl-10 pr-4 text-sm text-[#f8fafd] outline-none transition placeholder:text-[#a3b4d0]/48 focus:border-[#6366f1]/60 focus:ring-4 focus:ring-[#6366f1]/10"
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Global Search"
+            value={query}
+          />
+        </label>
+
+        <div className="ml-auto flex items-center gap-3">
+          <button className="relative grid h-10 w-10 place-items-center rounded-xl border border-[#1e2538] bg-[#0c0f1c] text-[#a3b4d0] transition hover:text-[#f8fafd]" type="button">
+            <Bell size={17} />
+            <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[#f59e0b]" />
+          </button>
+          <button className="flex h-10 items-center gap-2 rounded-xl border border-[#1e2538] bg-[#0c0f1c] px-2.5 text-sm text-[#f8fafd]" type="button">
+            <span className="grid h-7 w-7 place-items-center rounded-full bg-[linear-gradient(135deg,#6366f1,#22d3ee)] text-xs font-semibold text-white">
+              A
+            </span>
+            <ChevronDown size={14} />
+          </button>
+        </div>
       </div>
-      <div className="mt-3 rounded-2xl border border-white/10 bg-black/16 px-3 py-2 text-xs text-emerald-100/58">
-        {formatCompact(totalArea)} m2 deployable surface in current filters
-      </div>
-    </section>
+    </header>
   );
 }
 
-function ControlPanel({
+function FilterSidebar({
+  areaUnit,
+  assetTypes,
   cities,
   filters,
+  setAreaUnit,
   setFilters,
 }: {
+  areaUnit: "sqm" | "sqft";
+  assetTypes: string[];
   cities: string[];
   filters: Filters;
+  setAreaUnit: (unit: "sqm" | "sqft") => void;
   setFilters: React.Dispatch<React.SetStateAction<Filters>>;
 }) {
+  const displayedArea = areaUnit === "sqm" ? filters.minArea : Math.round(filters.minArea * 10.7639);
+
   return (
-    <section className="rounded-[24px] border border-white/10 bg-[#081610]/85 p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-medium text-white">
-          <SlidersHorizontal size={16} />
-          Scope
+    <aside className="w-full shrink-0 rounded-2xl border border-[#1e2538] bg-[#0c0f1c]/88 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.26)] backdrop-blur lg:w-[292px] lg:overflow-auto">
+      <div className="flex items-center justify-between border-b border-[#1e2538] pb-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#a3b4d0]">Filters</p>
+          <h2 className="mt-1 text-lg font-semibold text-[#f8fafd]">Site criteria</h2>
         </div>
-        <button
-          className="text-xs text-emerald-200/70 hover:text-emerald-100"
-          onClick={() => setFilters((current) => ({ ...current, city: "all", minScore: 0, minArea: 0, assetType: "all", query: "" }))}
-          type="button"
-        >
-          Reset
-        </button>
+        <SlidersHorizontal className="text-[#6366f1]" size={18} />
       </div>
 
-      <div className="grid gap-2">
-        {["all", ...cities].map((city) => (
-          <button
-            className={`flex h-10 items-center justify-between rounded-2xl border px-3 text-left text-sm transition ${
-              filters.city === city
-                ? "border-emerald-300/45 bg-emerald-300/12 text-white"
-                : "border-white/10 bg-black/14 text-emerald-100/62 hover:border-emerald-300/25"
-            }`}
-            key={city}
-            onClick={() => setFilters((current) => ({ ...current, city, minArea: 0, assetType: "all", query: "" }))}
-            type="button"
-          >
-            <span>{regionLabels[city] ?? city}</span>
-            <span className="text-xs text-emerald-100/42">{city === "all" ? "3 regions" : "city"}</span>
-          </button>
-        ))}
-      </div>
+      <div className="space-y-6 pt-5">
+        <label className="block">
+          <span className="text-sm font-medium text-[#f8fafd]">City</span>
+          <span className="relative mt-2 block">
+            <select
+              className="h-11 w-full appearance-none rounded-xl border border-[#1e2538] bg-[#141927] px-3 pr-10 text-sm text-[#f8fafd] outline-none transition focus:border-[#6366f1]/60"
+              onChange={(event) => setFilters((current) => ({ ...current, city: event.target.value }))}
+              value={filters.city}
+            >
+              <option value="all">All regions</option>
+              {cities.map((city) => (
+                <option key={city} value={city}>
+                  {cityLabels[city] ?? city}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#a3b4d0]" size={16} />
+          </span>
+        </label>
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <QuickButton label="All scores" onClick={() => setFilters((current) => ({ ...current, minScore: 0 }))} />
-        <QuickButton label="85+" onClick={() => setFilters((current) => ({ ...current, minScore: 85 }))} />
+        <div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-[#f8fafd]">Min Score</span>
+            <span className="rounded-lg border border-[#6366f1]/30 bg-[#6366f1]/12 px-2 py-1 text-xs font-semibold text-[#c7d2fe]">
+              {filters.minScore}
+            </span>
+          </div>
+          <input
+            className="solarforge-range mt-4 w-full"
+            max={100}
+            min={0}
+            onChange={(event) => setFilters((current) => ({ ...current, minScore: Number(event.target.value) }))}
+            type="range"
+            value={filters.minScore}
+          />
+          <div className="mt-2 flex justify-between text-xs text-[#a3b4d0]/65">
+            <span>0</span>
+            <span>50</span>
+            <span>100</span>
+          </div>
+        </div>
+
+        <label className="block">
+          <span className="text-sm font-medium text-[#f8fafd]">Min Area</span>
+          <div className="mt-2 flex overflow-hidden rounded-xl border border-[#1e2538] bg-[#141927]">
+            <input
+              className="h-11 min-w-0 flex-1 bg-transparent px-3 text-sm text-[#f8fafd] outline-none"
+              min={0}
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  minArea: areaUnit === "sqm" ? Number(event.target.value) : Math.round(Number(event.target.value) / 10.7639),
+                }))
+              }
+              type="number"
+              value={displayedArea}
+            />
+            <button
+              className="w-16 border-l border-[#1e2538] text-xs font-medium text-[#a3b4d0] transition hover:text-[#f8fafd]"
+              onClick={() => setAreaUnit(areaUnit === "sqm" ? "sqft" : "sqm")}
+              type="button"
+            >
+              {areaUnit}
+            </button>
+          </div>
+        </label>
+
+        <div>
+          <span className="text-sm font-medium text-[#f8fafd]">Asset Type</span>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {assetTypes.map((assetType) => {
+              const active = filters.assetTypes.includes(assetType);
+              return (
+                <button
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                    active
+                      ? "border-[#6366f1]/60 bg-[#6366f1]/18 text-[#f8fafd]"
+                      : "border-[#1e2538] bg-[#141927] text-[#a3b4d0] hover:border-[#6366f1]/36 hover:text-[#f8fafd]"
+                  }`}
+                  key={assetType}
+                  onClick={() =>
+                    setFilters((current) => ({
+                      ...current,
+                      assetTypes: active
+                        ? current.assetTypes.filter((type) => type !== assetType)
+                        : [...current.assetTypes, assetType],
+                    }))
+                  }
+                  type="button"
+                >
+                  {assetType.replaceAll("_", " ")}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
-    </section>
+    </aside>
   );
 }
 
-function QuickButton({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      className="h-10 rounded-2xl border border-emerald-300/20 bg-emerald-300/8 text-sm text-emerald-100 transition hover:border-emerald-200/50 hover:bg-emerald-300/14"
-      onClick={onClick}
-      type="button"
-    >
-      {label}
-    </button>
-  );
-}
-
-function RankedList({
-  features,
-  height,
-  onResize,
-  onSelect,
-  selectedId,
-}: {
-  features: SiteFeature[];
-  height: number;
-  onResize: (height: number) => void;
-  onSelect: (site: SiteFeature) => void;
-  selectedId: string;
-}) {
-  const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-
-    const startY = event.clientY;
-    const startHeight = height;
-
-    const move = (moveEvent: PointerEvent) => {
-      const nextHeight = startHeight + moveEvent.clientY - startY;
-      onResize(Math.max(260, Math.min(520, nextHeight)));
-    };
-
-    const stop = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", stop);
-    };
-
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", stop);
-  };
-
-  return (
-    <section className="relative shrink-0 rounded-[24px] border border-white/10 bg-[#081610]/85 p-3" style={{ height }}>
-      <div className="mb-3 flex items-center justify-between px-1">
-        <h3 className="text-sm font-medium text-white">Ranked candidates</h3>
-        <span className="text-xs text-emerald-100/50">{features.length} sites / drag</span>
-      </div>
-      <div className="space-y-2 overflow-auto pr-1" style={{ height: height - 58 }}>
-        {features.map((site, index) => (
-          <button
-            className={`w-full rounded-2xl border p-3 text-left transition ${
-              selectedId === site.properties.id
-                ? "border-emerald-300/55 bg-emerald-300/12"
-                : "border-white/8 bg-black/14 hover:border-emerald-300/30"
-            }`}
-            key={site.properties.id}
-            onClick={() => onSelect(site)}
-            type="button"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.14em] text-emerald-100/40">Rank {index + 1}</p>
-                <h4 className="mt-1 text-sm font-medium leading-5 text-white">{site.properties.name}</h4>
-              </div>
-              <ScoreChip value={site.properties.suitability_score} />
-            </div>
-            <div className="mt-3 flex items-center justify-between text-xs text-emerald-100/55">
-              <span>{formatCompact(site.properties.usable_area_sqm)} m2</span>
-              <span>{site.properties.grid_distance_km.toFixed(1)} km grid</span>
-            </div>
-          </button>
-        ))}
-      </div>
-      <div
-        aria-label="Resize ranked candidates"
-        className="absolute bottom-0 left-4 right-4 flex h-8 cursor-row-resize items-end justify-center rounded-b-[24px] bg-gradient-to-t from-[#081610] via-[#081610]/92 to-transparent pb-1 text-emerald-100/45 hover:text-emerald-100"
-        onPointerDown={startResize}
-        role="separator"
-      >
-        <GripHorizontal size={18} />
-      </div>
-    </section>
-  );
-}
-
-function MapWorkspace({
+function MapCanvas({
   hoveredSite,
   hoverPosition,
   mapContainerRef,
   onFit,
+  onZoomDelta,
 }: {
   hoveredSite: SiteFeature | null;
   hoverPosition: { x: number; y: number } | null;
   mapContainerRef: React.RefObject<HTMLDivElement | null>;
   onFit: () => void;
+  onZoomDelta: (delta: number) => void;
 }) {
   return (
-    <div className="relative h-full min-h-[520px]">
+    <div className="absolute inset-0">
       <div ref={mapContainerRef} className="absolute inset-0" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,transparent_0%,rgba(6,17,13,0.28)_72%,rgba(6,17,13,0.66)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(5,6,15,0.34),transparent_28%,rgba(5,6,15,0.18)_100%),radial-gradient(circle_at_50%_20%,transparent_0%,rgba(5,6,15,0.24)_68%,rgba(5,6,15,0.6)_100%)]" />
 
-      <button
-        className="absolute right-4 top-4 z-10 inline-flex h-10 items-center gap-2 rounded-2xl border border-white/10 bg-[#07140f]/86 px-4 text-sm text-emerald-50 backdrop-blur transition hover:border-emerald-300/35"
-        onClick={onFit}
-        type="button"
-      >
-        <MapPin size={15} />
-        Fit city
-      </button>
+      <div className="absolute left-4 top-4 z-10 flex overflow-hidden rounded-xl border border-[#1e2538] bg-[#0c0f1c]/86 shadow-2xl backdrop-blur">
+        <button className="grid h-10 w-10 place-items-center text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={() => onZoomDelta(0.75)} type="button">
+          <Plus size={16} />
+        </button>
+        <button className="grid h-10 w-10 place-items-center border-l border-[#1e2538] text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={() => onZoomDelta(-0.75)} type="button">
+          <Minus size={16} />
+        </button>
+        <button className="grid h-10 w-10 place-items-center border-l border-[#1e2538] text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={onFit} type="button">
+          <Layers size={16} />
+        </button>
+      </div>
 
-      <div className="absolute bottom-4 left-4 z-10 w-[240px] rounded-2xl border border-white/10 bg-[#07140f]/90 p-4 shadow-2xl backdrop-blur">
-        <div className="mb-3 flex items-center justify-between">
-          <span className="text-sm font-medium text-white">Score legend</span>
-          <Gauge size={15} className="text-emerald-200/70" />
+      <div className="absolute bottom-4 left-4 z-10 w-[230px] rounded-xl border border-[#1e2538] bg-[#0c0f1c]/88 p-3 shadow-2xl backdrop-blur">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-medium text-[#f8fafd]">Suitability score</span>
+          <span className="text-[11px] text-[#a3b4d0]">live</span>
         </div>
-        <div className="h-2 rounded-full bg-gradient-to-r from-red-400 via-amber-300 via-lime-300 to-emerald-300" />
-        <div className="mt-2 flex justify-between text-[11px] text-emerald-100/45">
+        <div className="h-2 rounded-full bg-gradient-to-r from-[#ef4444] via-[#f59e0b] via-[#22d3ee] to-[#6366f1]" />
+        <div className="mt-2 flex justify-between text-[11px] text-[#a3b4d0]">
           <span>Review</span>
-          <span>Strong</span>
-          <span>Excellent</span>
+          <span>Good</span>
+          <span>Best</span>
         </div>
       </div>
 
       {hoveredSite && hoverPosition ? (
         <div
-          className="pointer-events-none absolute z-20 w-[260px] rounded-2xl border border-emerald-300/25 bg-[#07140f]/94 p-3 shadow-2xl shadow-black/40 backdrop-blur"
+          className="pointer-events-none absolute z-20 w-[250px] rounded-xl border border-[#1e2538] bg-[#0c0f1c]/94 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.45)] backdrop-blur"
           style={{
             left: hoverPosition.x,
             top: hoverPosition.y,
-            transform: hoverPosition.x > 520 ? "translate(-104%, -46%)" : "translate(18px, -46%)",
+            transform: hoverPosition.x > 560 ? "translate(-108%, -44%)" : "translate(18px, -44%)",
           }}
         >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs text-emerald-100/50">Site intelligence</p>
-              <h4 className="mt-1 text-sm font-medium text-white">{hoveredSite.properties.name}</h4>
+              <p className="text-[11px] uppercase tracking-[0.14em] text-[#a3b4d0]">Site intelligence</p>
+              <h4 className="mt-1 text-sm font-semibold leading-5 text-[#f8fafd]">{hoveredSite.properties.name}</h4>
             </div>
-            <ScoreChip value={hoveredSite.properties.suitability_score} />
+            <ScorePill value={hoveredSite.properties.suitability_score} />
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-emerald-50/70">
-            <InfoTile label="Area" value={`${formatCompact(hoveredSite.properties.usable_area_sqm)} m2`} />
-            <InfoTile label="Grid" value={`${hoveredSite.properties.grid_distance_km.toFixed(1)} km`} />
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[#a3b4d0]">
+            <InfoMetric label="Area" value={`${formatCompact(hoveredSite.properties.usable_area_sqm)} m2`} />
+            <InfoMetric label="Grid" value={`${hoveredSite.properties.grid_distance_km.toFixed(1)} km`} />
           </div>
         </div>
       ) : null}
@@ -640,168 +653,172 @@ function MapWorkspace({
   );
 }
 
-function SiteDetail({ site }: { site: SiteFeature | null }) {
-  if (!site) {
-    return (
-      <section className="rounded-[24px] border border-white/10 bg-[#081610]/85 p-4">
-        <p className="text-sm text-emerald-100/60">Select a candidate to inspect viability.</p>
-      </section>
-    );
-  }
-
-  const properties = site.properties;
-  const capacityKw = properties.estimated_capacity_kw ?? properties.usable_area_sqm / 10;
-  const annualGeneration = properties.estimated_annual_generation_kwh ?? capacityKw * properties.annual_ghi_kwh_m2 * 0.78;
-  const floodSafety = Math.round((1 - properties.flood_risk_score) * 100);
-  const gridAccess = Math.round((1 - Math.min(properties.grid_distance_km / 10, 1)) * 100);
-
+function MapSummary({
+  avgScore,
+  count,
+  totalArea,
+  totalCapacityKw,
+}: {
+  avgScore: number;
+  count: number;
+  totalArea: number;
+  totalCapacityKw: number;
+}) {
   return (
-    <section className="rounded-[24px] border border-white/10 bg-[#081610]/85 p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-emerald-100/45">Selected site</p>
-          <h3 className="mt-2 text-xl font-semibold leading-tight text-white">{properties.name}</h3>
-          <p className="mt-2 text-sm text-emerald-100/55">{properties.asset_type.replaceAll("_", " ")}</p>
-        </div>
-        <ScoreChip value={properties.suitability_score} large />
-      </div>
-
-      <div className="mt-5 grid grid-cols-2 gap-2">
-        <InfoTile label="Usable area" value={`${formatCompact(properties.usable_area_sqm)} m2`} />
-        <InfoTile label="Capacity" value={`${formatCompact(capacityKw)} kW`} />
-        <InfoTile label="Annual yield" value={`${formatCompact(annualGeneration / 1000)} MWh`} />
-        <InfoTile label="Grid distance" value={`${properties.grid_distance_km.toFixed(1)} km`} />
-      </div>
-
-      <div className="mt-5 space-y-3">
-        <ScoreBar label="Solar exposure" value={Math.min(((properties.annual_ghi_kwh_m2 - 1300) / 800) * 100, 96)} />
-        <ScoreBar label="Flood safety" value={floodSafety} warning={floodSafety < 70} />
-        <ScoreBar label="Grid accessibility" value={gridAccess} warning={gridAccess < 70} />
-      </div>
-
-      <p className="mt-5 rounded-2xl border border-white/10 bg-black/16 p-3 text-sm leading-6 text-emerald-50/68">
-        {properties.notes ?? "No notes provided."}
-      </p>
-    </section>
+    <div className="pointer-events-none absolute bottom-4 right-4 z-10 hidden grid-cols-3 gap-2 md:grid">
+      <SummaryTile label="Sites" value={`${count}`} />
+      <SummaryTile label="Avg Score" value={`${avgScore.toFixed(0)}%`} />
+      <SummaryTile label="Capacity" value={`${formatCompact(totalCapacityKw)} kWp`} />
+      <SummaryTile className="col-span-3" label="Filtered roof area" value={`${formatCompact(totalArea)} m2`} />
+    </div>
   );
 }
 
-function OpportunityCard({
-  lowFloodRiskCount,
-  nearGridCount,
+function SummaryTile({ className = "", label, value }: { className?: string; label: string; value: string }) {
+  return (
+    <div className={`rounded-xl border border-[#1e2538] bg-[#0c0f1c]/86 px-3 py-2 shadow-xl backdrop-blur ${className}`}>
+      <p className="text-[11px] text-[#a3b4d0]">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-[#f8fafd]">{value}</p>
+    </div>
+  );
+}
+
+function DetailPanel({ onClose, site, usingSampleData }: { onClose: () => void; site: SiteFeature; usingSampleData: boolean }) {
+  const properties = site.properties;
+  const capacityKw = properties.estimated_capacity_kw ?? properties.usable_area_sqm / 10;
+  const floodSafety = Math.round((1 - properties.flood_risk_score) * 100);
+  const cityLine = [properties.city, properties.state].filter(Boolean).join(", ");
+
+  return (
+    <>
+      <aside className="absolute right-5 top-5 z-20 w-[340px] rounded-2xl border border-[#1e2538] bg-[#0c0f1c]/94 p-4 shadow-[0_28px_90px_rgba(0,0,0,0.46)] backdrop-blur-xl max-md:hidden">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#a3b4d0]">Selected site</p>
+        <button className="grid h-8 w-8 place-items-center rounded-lg text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={onClose} type="button">
+          <X size={15} />
+        </button>
+      </div>
+
+      <div className="mt-3 h-[122px] overflow-hidden rounded-xl border border-[#1e2538] bg-[linear-gradient(135deg,rgba(99,102,241,0.14),rgba(34,211,238,0.08)),repeating-linear-gradient(90deg,rgba(248,250,253,0.16)_0_1px,transparent_1px_18px),linear-gradient(180deg,#1f2937,#111827)]">
+        <div className="flex h-full items-end justify-between p-3">
+          <div className="rounded-lg border border-white/12 bg-white/10 px-3 py-2 text-xs text-[#f8fafd] backdrop-blur">
+            rooftop preview
+          </div>
+          <ScorePill large value={properties.suitability_score} />
+        </div>
+      </div>
+
+      <h3 className="mt-4 text-xl font-semibold leading-tight tracking-[-0.02em] text-[#f8fafd]">{properties.name}</h3>
+      <p className="mt-1 text-sm text-[#a3b4d0]">{cityLine}</p>
+
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <InfoMetric label="Area" value={`${formatCompact(properties.usable_area_sqm)} m2`} />
+        <InfoMetric label="Est." value={`${formatCompact(capacityKw)} kWp`} />
+        <InfoMetric label="Score" value={`${Math.round(properties.suitability_score)}/100`} />
+      </div>
+
+      <div className="mt-4 divide-y divide-[#1e2538] rounded-xl border border-[#1e2538] bg-[#141927]/70">
+        <DetailRow label="Grid distance" value={`${properties.grid_distance_km.toFixed(1)} km`} />
+        <DetailRow label="Flood resilience" value={`${floodSafety}%`} />
+        <DetailRow label="Solar exposure" value={`${formatNumber(properties.annual_ghi_kwh_m2)} kWh/m2`} />
+        <DetailRow label="Data source" value={usingSampleData ? "Public demo" : "Live PostGIS"} />
+      </div>
+
+      <div className="mt-4 grid gap-2">
+        <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#6366f1] text-sm font-semibold text-white shadow-[0_18px_45px_rgba(99,102,241,0.28)] transition hover:bg-[#7073ff]" type="button">
+          <FileText size={15} />
+          View Full Report
+        </button>
+        <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#1e2538] bg-[#141927]/70 text-sm font-semibold text-[#f8fafd] transition hover:border-[#6366f1]/50" type="button">
+          <Zap size={15} />
+          Generate Proposal
+        </button>
+      </div>
+      </aside>
+
+      <aside className="absolute inset-x-3 bottom-3 z-20 rounded-2xl border border-[#1e2538] bg-[#0c0f1c]/94 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.5)] backdrop-blur-xl md:hidden">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#a3b4d0]">Selected site</p>
+            <h3 className="mt-1 text-base font-semibold leading-tight text-[#f8fafd]">{properties.name}</h3>
+            <p className="mt-1 text-xs text-[#a3b4d0]">{cityLine}</p>
+          </div>
+          <button className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={onClose} type="button">
+            <X size={15} />
+          </button>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <InfoMetric label="Area" value={`${formatCompact(properties.usable_area_sqm)} m2`} />
+          <InfoMetric label="Est." value={`${formatCompact(capacityKw)} kWp`} />
+          <InfoMetric label="Score" value={`${Math.round(properties.suitability_score)}/100`} />
+        </div>
+      </aside>
+    </>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-3 py-2.5 text-sm">
+      <span className="text-[#a3b4d0]">{label}</span>
+      <span className="text-right font-medium text-[#f8fafd]">{value}</span>
+    </div>
+  );
+}
+
+function MobileRankedStrip({
+  features,
+  onSelect,
+  selectedId,
   topSite,
 }: {
-  lowFloodRiskCount: number;
-  nearGridCount: number;
+  features: SiteFeature[];
+  onSelect: (site: SiteFeature) => void;
+  selectedId: string;
   topSite: SiteFeature | null;
 }) {
   return (
-    <section className="rounded-[24px] border border-white/10 bg-[#081610]/85 p-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-white">MVP signal</h3>
-        <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-xs text-emerald-100">
-          sales-ready
-        </span>
+    <aside className="rounded-2xl border border-[#1e2538] bg-[#0c0f1c]/90 p-4 lg:hidden">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#a3b4d0]">Ranked sites</p>
+      <div className="mt-3 flex gap-3 overflow-auto pb-1">
+        {(features.length ? features : topSite ? [topSite] : []).slice(0, 8).map((site, index) => (
+          <button
+            className={`w-[230px] shrink-0 rounded-xl border p-3 text-left ${
+              selectedId === site.properties.id ? "border-[#6366f1]/55 bg-[#6366f1]/12" : "border-[#1e2538] bg-[#141927]"
+            }`}
+            key={site.properties.id}
+            onClick={() => onSelect(site)}
+            type="button"
+          >
+            <p className="text-[11px] uppercase tracking-[0.14em] text-[#a3b4d0]">Rank {index + 1}</p>
+            <h4 className="mt-1 text-sm font-semibold leading-5 text-[#f8fafd]">{site.properties.name}</h4>
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-xs text-[#a3b4d0]">{formatCompact(site.properties.usable_area_sqm)} m2</span>
+              <ScorePill value={site.properties.suitability_score} />
+            </div>
+          </button>
+        ))}
       </div>
-      <div className="mt-4 space-y-3">
-        <SignalRow label="Best first pitch" value={topSite?.properties.name ?? "No active site"} />
-        <SignalRow label="Low flood risk" value={`${lowFloodRiskCount} sites`} />
-        <SignalRow label="Grid within 2 km" value={`${nearGridCount} sites`} />
-      </div>
-    </section>
+    </aside>
   );
 }
 
-function PipelineCard({ features, usingSampleData }: { features: SiteFeature[]; usingSampleData: boolean }) {
+function InfoMetric({ label, value }: { label: string; value: string }) {
   return (
-    <section className="rounded-[24px] border border-white/10 bg-[#081610]/85 p-4">
-      <h3 className="text-sm font-medium text-white">Pipeline health</h3>
-      <div className="mt-4 space-y-3 text-sm">
-        <HealthRow label="API source" value={usingSampleData ? "Sample fallback" : "Live PostGIS"} ok={!usingSampleData} />
-        <HealthRow label="Candidate count" value={`${features.length} active`} ok />
-        <HealthRow label="Map tiles" value="Open provider" ok />
-      </div>
-    </section>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-      <p className="text-[11px] text-emerald-100/45">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-white">{value}</p>
+    <div className="rounded-xl border border-[#1e2538] bg-[#141927]/76 p-3">
+      <p className="text-[11px] text-[#a3b4d0]">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-[#f8fafd]">{value}</p>
     </div>
   );
 }
 
-function Metric({ label, tone = "default", value }: { label: string; tone?: "default" | "green"; value: string }) {
-  return (
-    <article
-      className={`rounded-[24px] border p-4 shadow-xl shadow-black/18 ${
-        tone === "green"
-          ? "border-emerald-300/25 bg-emerald-300/10"
-          : "border-white/10 bg-[#081610]/86"
-      }`}
-    >
-      <p className="text-xs text-emerald-100/50">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
-    </article>
-  );
-}
+function ScorePill({ large = false, value }: { large?: boolean; value: number }) {
+  const tone = value >= 88 ? "border-[#6366f1]/55 bg-[#6366f1]/22 text-[#c7d2fe]" : value >= 82 ? "border-[#f59e0b]/45 bg-[#f59e0b]/18 text-[#fde68a]" : "border-[#ef4444]/45 bg-[#ef4444]/18 text-[#fecaca]";
 
-function InfoTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/16 p-3">
-      <p className="text-xs text-emerald-100/45">{label}</p>
-      <p className="mt-1 text-sm font-medium text-white">{value}</p>
-    </div>
-  );
-}
-
-function ScoreChip({ large = false, value }: { large?: boolean; value: number }) {
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-full border border-emerald-200/30 bg-emerald-300/15 font-semibold text-emerald-100 ${
-        large ? "h-16 w-16 text-xl" : "h-10 min-w-14 px-3 text-sm"
-      }`}
-    >
-      {value.toFixed(large ? 0 : 1)}
+    <span className={`inline-flex shrink-0 items-center justify-center rounded-full border font-semibold ${tone} ${large ? "h-14 min-w-14 px-3 text-base" : "h-8 min-w-11 px-2 text-xs"}`}>
+      {Math.round(value)}
     </span>
-  );
-}
-
-function ScoreBar({ label, value, warning = false }: { label: string; value: number; warning?: boolean }) {
-  return (
-    <div>
-      <div className="mb-1 flex items-center justify-between text-xs">
-        <span className="text-emerald-100/55">{label}</span>
-        <span className={warning ? "text-amber-200" : "text-emerald-200"}>{Math.round(value)}%</span>
-      </div>
-      <div className="h-2 rounded-full bg-white/10">
-        <div
-          className={`h-2 rounded-full ${warning ? "bg-amber-300" : "bg-emerald-300"}`}
-          style={{ width: `${Math.max(0, Math.min(value, 100))}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function HealthRow({ label, ok, value }: { label: string; ok: boolean; value: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-emerald-100/55">{label}</span>
-      <span className={ok ? "text-emerald-200" : "text-amber-200"}>{value}</span>
-    </div>
-  );
-}
-
-function SignalRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-black/14 p-3">
-      <p className="text-xs text-emerald-100/45">{label}</p>
-      <p className="mt-1 text-sm font-medium leading-5 text-white">{value}</p>
-    </div>
   );
 }
 
@@ -811,13 +828,13 @@ function scoreColorExpression() {
     ["linear"],
     ["get", "suitability_score"],
     70,
-    "#f87171",
-    78,
-    "#fbbf24",
-    84,
-    "#bef264",
+    "#ef4444",
+    80,
+    "#f59e0b",
+    86,
+    "#22d3ee",
     90,
-    "#34d399",
+    "#6366f1",
   ] as maplibregl.ExpressionSpecification;
 }
 
@@ -826,11 +843,10 @@ function updateSelectionPaint(map: Map, selectedId: string) {
     return;
   }
 
-  map.setPaintProperty("solar-sites-fill", "fill-opacity", ["case", ["==", ["get", "id"], selectedId], 0.64, 0.38]);
-  map.setPaintProperty("solar-sites-line", "line-width", ["case", ["==", ["get", "id"], selectedId], 4.6, 2.8]);
-  map.setPaintProperty("solar-site-glow", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 30, 18]);
-  map.setPaintProperty("solar-site-points", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 8, 5.5]);
-  map.setPaintProperty("solar-site-points", "circle-stroke-width", ["case", ["==", ["get", "id"], selectedId], 2.8, 1.3]);
+  map.setPaintProperty("solar-sites-fill", "fill-opacity", ["case", ["==", ["get", "id"], selectedId], 0.45, 0.26]);
+  map.setPaintProperty("solar-sites-line", "line-width", ["case", ["==", ["get", "id"], selectedId], 3.4, 1.8]);
+  map.setPaintProperty("solar-site-glow", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 27, 18]);
+  map.setPaintProperty("solar-site-points", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 14, 11]);
 }
 
 function fitToSites(map: Map | null, features: SiteFeature[]) {
@@ -844,9 +860,9 @@ function fitToSites(map: Map | null, features: SiteFeature[]) {
   }
 
   map.fitBounds(bounds, {
-    padding: { top: 52, right: 52, bottom: 52, left: 52 },
-    maxZoom: features.length > 1 ? 9.2 : 13.2,
-    duration: 800,
+    duration: 900,
+    maxZoom: features.length > 1 ? 15.4 : 16.2,
+    padding: { bottom: 56, left: 56, right: 360, top: 56 },
   });
 }
 
@@ -861,10 +877,18 @@ function flyToSite(map: Map | null, feature: SiteFeature) {
   }
 
   map.fitBounds(bounds, {
-    padding: { top: 140, right: 140, bottom: 140, left: 140 },
-    maxZoom: 16,
-    duration: 700,
+    duration: 780,
+    maxZoom: 17,
+    padding: { bottom: 140, left: 140, right: 420, top: 140 },
   });
+}
+
+function nudgeZoom(map: Map | null, delta: number) {
+  if (!map) {
+    return;
+  }
+
+  map.easeTo({ duration: 240, zoom: Math.max(5, Math.min(18, map.getZoom() + delta)) });
 }
 
 function getFeatureBounds(features: SiteFeature[]) {
