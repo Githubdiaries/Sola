@@ -438,10 +438,10 @@ function TopNav({ query, setQuery }: { query: string; setQuery: (query: string) 
         <div className="ml-auto flex items-center gap-3">
           <button className="relative grid h-10 w-10 place-items-center rounded-xl border border-[#1e2538] bg-[#0c0f1c] text-[#a3b4d0] transition hover:text-[#f8fafd]" type="button">
             <Bell size={17} />
-            <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[#d6b85c]" />
+            <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[#a3ff12]" />
           </button>
           <button className="flex h-10 items-center gap-2 rounded-xl border border-[#1e2538] bg-[#0c0f1c] px-2.5 text-sm text-[#f8fafd]" type="button">
-            <span className="grid h-7 w-7 place-items-center rounded-full bg-[linear-gradient(135deg,#8b5cf6,#2dd4bf)] text-xs font-semibold text-white">
+            <span className="grid h-7 w-7 place-items-center rounded-full bg-[linear-gradient(135deg,#a3ff12,#22c55e)] text-xs font-semibold text-[#05060f]">
               A
             </span>
             <ChevronDown size={14} />
@@ -622,7 +622,7 @@ function MapCanvas({
           <span className="text-xs font-medium text-[#f8fafd]">Suitability score</span>
           <span className="text-[11px] text-[#a3b4d0]">live</span>
         </div>
-        <div className="h-2 rounded-full bg-gradient-to-r from-[#8b5cf6] via-[#d6b85c] via-[#2dd4bf] to-[#e0e7ff]" />
+        <div className="h-2 rounded-full bg-gradient-to-r from-[#facc15] via-[#a3ff12] to-[#22c55e]" />
         <div className="mt-2 flex justify-between text-[11px] text-[#a3b4d0]">
           <span>Review</span>
           <span>Good</span>
@@ -818,10 +818,10 @@ function InfoMetric({ label, value }: { label: string; value: string }) {
 function ScorePill({ large = false, value }: { large?: boolean; value: number }) {
   const tone =
     value >= 88
-      ? "border-[#e0e7ff]/60 bg-[#e0e7ff]/16 text-[#f8fafd]"
+      ? "border-[#22c55e]/70 bg-[#22c55e]/18 text-[#bbf7d0]"
       : value >= 82
-        ? "border-[#2dd4bf]/48 bg-[#2dd4bf]/14 text-[#b6fff5]"
-        : "border-[#d6b85c]/48 bg-[#d6b85c]/14 text-[#f8e6aa]";
+        ? "border-[#a3ff12]/60 bg-[#a3ff12]/16 text-[#ecfccb]"
+        : "border-[#facc15]/58 bg-[#facc15]/16 text-[#fef9c3]";
 
   return (
     <span className={`inline-flex shrink-0 items-center justify-center rounded-full border font-semibold ${tone} ${large ? "h-14 min-w-14 px-3 text-base" : "h-8 min-w-11 px-2 text-xs"}`}>
@@ -836,13 +836,11 @@ function scoreColorExpression() {
     ["linear"],
     ["get", "suitability_score"],
     70,
-    "#8b5cf6",
-    80,
-    "#d6b85c",
-    86,
-    "#2dd4bf",
+    "#facc15",
+    82,
+    "#a3ff12",
     90,
-    "#e0e7ff",
+    "#22c55e",
   ] as maplibregl.ExpressionSpecification;
 }
 
