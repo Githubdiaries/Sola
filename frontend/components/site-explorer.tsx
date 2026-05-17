@@ -237,6 +237,8 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
         type: "geojson",
       });
 
+      registerPinImages(map);
+
       map.addLayer({
         id: "solar-sites-fill",
         paint: {
@@ -260,19 +262,34 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
       });
 
       map.addLayer({
+        id: "solar-site-pin-glow",
+        paint: {
+          "circle-blur": 0.82,
+          "circle-color": scoreColorExpression(),
+          "circle-opacity": ["case", ["==", ["get", "id"], selectedIdRef.current], 0.34, 0],
+          "circle-radius": ["case", ["==", ["get", "id"], selectedIdRef.current], 30, 0],
+        },
+        source: "solar-site-points",
+        type: "circle",
+      });
+
+      map.addLayer({
         id: "solar-site-pins",
         layout: {
-          "text-allow-overlap": true,
-          "text-anchor": "bottom",
-          "text-field": "📍",
-          "text-offset": [0, 0.25],
-          "text-size": ["case", ["==", ["get", "id"], selectedIdRef.current], 34, 28],
+          "icon-allow-overlap": true,
+          "icon-anchor": "bottom",
+          "icon-image": [
+            "case",
+            [">", ["get", "suitability_score"], 85],
+            "sola-pin-green",
+            [">=", ["get", "suitability_score"], 70],
+            "sola-pin-amber",
+            "sola-pin-red",
+          ],
+          "icon-size": ["case", ["==", ["get", "id"], selectedIdRef.current], 1.02, 0.86],
         },
         paint: {
-          "text-color": scoreColorExpression(),
-          "text-halo-color": "#f8fafd",
-          "text-halo-width": 0.75,
-          "text-opacity": 0.98,
+          "icon-opacity": 0.98,
         },
         source: "solar-site-points",
         type: "symbol",
@@ -834,8 +851,80 @@ function updateSelectionPaint(map: Map, selectedId: string) {
   map.setPaintProperty("solar-sites-fill", "fill-opacity", ["case", ["==", ["get", "id"], selectedId], 0.42, 0.22]);
   map.setPaintProperty("solar-sites-line", "line-width", ["case", ["==", ["get", "id"], selectedId], 3.2, 1.7]);
   if (map.getLayer("solar-site-pins")) {
-    map.setLayoutProperty("solar-site-pins", "text-size", ["case", ["==", ["get", "id"], selectedId], 34, 28]);
+    map.setLayoutProperty("solar-site-pins", "icon-size", ["case", ["==", ["get", "id"], selectedId], 1.02, 0.86]);
   }
+  if (map.getLayer("solar-site-pin-glow")) {
+    map.setPaintProperty("solar-site-pin-glow", "circle-opacity", ["case", ["==", ["get", "id"], selectedId], 0.34, 0]);
+    map.setPaintProperty("solar-site-pin-glow", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 30, 0]);
+  }
+}
+
+function registerPinImages(map: Map) {
+  const pinColors = {
+    amber: "#ffe500",
+    green: "#22c55e",
+    red: "#ef4444",
+  };
+
+  Object.entries(pinColors).forEach(([name, color]) => {
+    const imageName = `sola-pin-${name}`;
+    if (!map.hasImage(imageName)) {
+      map.addImage(imageName, createPinImage(color), { pixelRatio: 2 });
+    }
+  });
+}
+
+function createPinImage(fillColor: string) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 96;
+  canvas.height = 116;
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("Canvas is unavailable for map marker rendering.");
+  }
+
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.save();
+  context.shadowColor = "rgba(0, 0, 0, 0.45)";
+  context.shadowBlur = 14;
+  context.shadowOffsetY = 9;
+  drawPinPath(context);
+  context.fillStyle = fillColor;
+  context.fill();
+  context.restore();
+
+  const gradient = context.createLinearGradient(22, 12, 74, 94);
+  gradient.addColorStop(0, "rgba(255,255,255,0.3)");
+  gradient.addColorStop(0.46, fillColor);
+  gradient.addColorStop(1, "rgba(0,0,0,0.18)");
+
+  drawPinPath(context);
+  context.fillStyle = gradient;
+  context.fill();
+  context.lineWidth = 4;
+  context.strokeStyle = "rgba(248,250,253,0.82)";
+  context.stroke();
+
+  context.beginPath();
+  context.arc(48, 43, 12, 0, Math.PI * 2);
+  context.fillStyle = "rgba(248,250,253,0.94)";
+  context.fill();
+  context.lineWidth = 2;
+  context.strokeStyle = "rgba(5,6,15,0.18)";
+  context.stroke();
+
+  return context.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+function drawPinPath(context: CanvasRenderingContext2D) {
+  context.beginPath();
+  context.moveTo(48, 108);
+  context.bezierCurveTo(41, 92, 17, 71, 17, 45);
+  context.bezierCurveTo(17, 20, 31, 8, 48, 8);
+  context.bezierCurveTo(65, 8, 79, 20, 79, 45);
+  context.bezierCurveTo(79, 71, 55, 92, 48, 108);
+  context.closePath();
 }
 
 function fitToSites(map: Map | null, features: SiteFeature[]) {
