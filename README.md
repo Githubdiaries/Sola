@@ -1,8 +1,30 @@
-# Sola
+# Sola ☀️
 
-Sola is a full-stack solar site intelligence platform for small and mid-size solar EPCs, developers, and commercial rooftop sales teams.
+Sola is a full-stack *solar site intelligence platform* for small and mid-size solar EPCs, developers, and commercial rooftop sales teams.
 
 The product helps teams find rooftops and land parcels with the most usable solar area and strongest project viability, then rank them quickly enough to turn GIS data into qualified pipeline.
+
+## MVP
+
+## User View
+
+<img width="631" height="293" alt="Screenshot 2026-05-18 025533" src="https://github.com/user-attachments/assets/b4851c06-23e4-45fb-bc29-8d4bc21eff6f" />
+
+<br><br>
+
+<img width="631" height="292" alt="Screenshot 2026-05-18 024732" src="https://github.com/user-attachments/assets/d02529f3-3ef1-4db1-b95e-12a9e4df300e" />
+
+## Admin View
+
+<img width="1536" height="1024" alt="Solana" src="https://github.com/user-attachments/assets/816575ac-2678-43c6-9a2b-2f24b233b7bc" />
+
+
+
+
+
+
+
+
 
 ## Customer Value
 
@@ -17,7 +39,7 @@ The product helps teams find rooftops and land parcels with the most usable sola
 - Backend: Python 3.11, FastAPI async, SQLAlchemy 2.0, GeoAlchemy2.
 - Database: PostgreSQL 16 with PostGIS 3.4.
 - GIS: GeoPandas, Shapely, PVLib, Rasterio.
-- Frontend: Next.js 15 App Router, TypeScript, Tailwind, Mapbox GL JS-ready.
+- Frontend: Next.js 15 App Router, TypeScript, Tailwind, MapLibre GL JS.
 - Container: Docker Compose with PostGIS, backend API, and Grafana.
 
 ## Repository Structure
@@ -37,13 +59,14 @@ Sola/
 
 - `GET /api/v1/sites` returns GeoJSON FeatureCollections.
 - Filters: `city`, `min_area_sqm`, `min_score`, and `limit`.
+- Token-free MVP map using MapLibre GL JS and OpenStreetMap raster tiles.
 - Realistic suitability scoring:
   - usable area weight
   - irradiance weight
   - flood risk weight
   - grid proximity weight
 - Sample PostGIS data loads automatically on first database startup.
-- Thiruvananthapuram MVP candidate sites are included in `scripts/load-thiruvananthapuram-sites.sql` and `data/sample/thiruvananthapuram_solar_sites.csv`.
+- Kerala MVP candidate sites are included in `scripts/load-thiruvananthapuram-sites.sql` and `data/sample/thiruvananthapuram_solar_sites.csv`.
 - Structured JSON logging and defensive API error handling.
 - Data model includes AI-detection status fields for later roof segmentation workflows.
 - Grafana provisioning is ready for operational dashboards.
@@ -78,7 +101,7 @@ curl http://localhost:8000/health
 5. Query ranked solar sites:
 
 ```bash
-curl "http://localhost:8000/api/v1/sites?city=Bengaluru&min_area_sqm=8000&min_score=80"
+curl "http://localhost:8000/api/v1/sites?city=Kochi&min_area_sqm=8000&min_score=80"
 ```
 
 6. Open service UIs:
@@ -114,7 +137,7 @@ Filter by project viability:
 curl "http://localhost:8000/api/v1/sites?min_score=85&min_area_sqm=7000"
 ```
 
-View the Thiruvananthapuram MVP pipeline:
+View the Kerala MVP pipeline:
 
 ```bash
 curl "http://localhost:8000/api/v1/sites?city=Thiruvananthapuram&limit=50"
