@@ -1,46 +1,101 @@
 # Sola ☀️
 
+
 Sola is a full-stack *solar site intelligence platform* for small and mid-size solar EPCs, developers, and commercial rooftop sales teams.
 
-The product helps teams find rooftops and land parcels with the most usable solar area and strongest project viability, then rank them quickly enough to turn GIS data into qualified pipeline.
+Sola helps teams find rooftops and land parcels with the most usable solar area and strongest project viability, then rank them quickly enough to turn GIS data into qualified pipeline.
+
+
+---
+
+## Who Is Sola For?
+
+/  Solar EPC teams <br>
+\  Rooftop solar installers <br>
+/  Energy consultants <br>
+\  Renewable energy researchers <br>
+/  Local government body planners <br>
+\  Sustainability teams <br>
+/  Students working on solar/geospatial analysis
+
+---
+
+## What Does Sola Answer?
+
+| Question | Feature |
+|---|---|
+| Where are the potential solar sites? | Interactive Kerala map |
+| Which sites are worth checking first? | Solar suitability score |
+| Which site is better than another? | Site comparison |
+| What makes a site promising? | Score factors |
+| What makes a site risky? | Risk indicators |
+| Where are the sites located visually? | Map markers |
+| Can sites be ranked? | Ranked shortlist |
+| Can this support early planning? | Screening workflow |
+
+---
+
 
 ## MVP
 
-## User View
+ *User Panel*
 
 <img width="631" height="293" alt="Screenshot 2026-05-18 025533" src="https://github.com/user-attachments/assets/b4851c06-23e4-45fb-bc29-8d4bc21eff6f" width="50%" />
+---
 <br><br>
 
 <img width="631" height="292" alt="Screenshot 2026-05-18 024732" src="https://github.com/user-attachments/assets/d02529f3-3ef1-4db1-b95e-12a9e4df300e" width="50%" />
 <br><br>
 
-## Admin Dashboard
+ *Admin Dashboard*
 
 <img width="1536" height="1024" alt="Solana" src="https://github.com/user-attachments/assets/816575ac-2678-43c6-9a2b-2f24b233b7bc" />
+<br></br>
 
+## Current Features
 
+$ Kerala-only solar site map <br>
+$ Interactive map markers <br>
+$ Solar suitability scoring <br>
+$ Site comparison <br>
+$ Basic risk consideration <br>
+$ Adjustable scoring logic <br>
+$ Streamlit-based interface <br>
 
+---
 
+## What Sola Does Not Do Yet
 
-
-
-
+- Final engineering approval <br>
+- Structural roof verification <br>
+- Electrical system design <br>
+- DISCOM or grid approval <br>
+- Land ownership verification <br>
+- Detailed shading analysis <br>
+- Financial feasibility modelling <br>
+- Legal or permitting review <br>
+---
 
 ## Customer Value
 
-- Find high-potential commercial rooftops and sites without manual map trawling.
-- Prioritize leads by usable area, irradiance, flood risk, and grid proximity.
-- Return ranked polygons as GeoJSON for map workflows and downstream analysis.
-- Keep the data model ready for AI roof detection, shading analysis, and grid hosting layers.
-- Give sales and development teams a shared source of truth for early site screening.
+[] Find high-potential commercial rooftops and sites without manual map trawling. <br>
+[] Prioritize leads by usable area, irradiance, flood risk, and grid proximity. <br>
+[] Return ranked polygons as GeoJSON for map workflows and downstream analysis. <br>
+[] Keep the data model ready for AI roof detection, shading analysis, and grid hosting layers. <br>
+[] Give sales and development teams a shared source of truth for early site screening. <br>
+
+---
+" Sola helps users decide where to *look* first. 
+ It does not decide where to build *final* " .
+---
 
 ## Current Stack
-
-- Backend: Python 3.11, FastAPI async, SQLAlchemy 2.0, GeoAlchemy2.
-- Database: PostgreSQL 16 with PostGIS 3.4.
-- GIS: GeoPandas, Shapely, PVLib, Rasterio.
-- Frontend: Next.js 15 App Router, TypeScript, Tailwind, MapLibre GL JS.
-- Container: Docker Compose with PostGIS, backend API, and Grafana.
+ 
+ Backend: Python 3.11, FastAPI async, SQLAlchemy 2.0, GeoAlchemy2. <br>
+ Database: PostgreSQL 16 with PostGIS 3.4. <br>
+ GIS: GeoPandas, Shapely, PVLib, Rasterio. <br>
+ Frontend: Next.js 15 App Router, TypeScript, Tailwind, MapLibre GL JS. <br>
+ Container: Docker Compose with PostGIS, backend API, and Grafana. <br>
 
 ## Repository Structure
 
@@ -55,7 +110,7 @@ Sola/
 └── scripts/              # Setup, seed, and utility scripts
 ```
 
-## Features
+## Technical Features
 
 - `GET /api/v1/sites` returns GeoJSON FeatureCollections.
 - Filters: `city`, `min_area_sqm`, `min_score`, and `limit`.
@@ -70,7 +125,7 @@ Sola/
 - Structured JSON logging and defensive API error handling.
 - Data model includes AI-detection status fields for later roof segmentation workflows.
 - Grafana provisioning is ready for operational dashboards.
-
+---
 ## How to Run Locally
 
 1. Clone and enter the repository:
@@ -156,7 +211,7 @@ curl -X POST "http://localhost:8000/api/v1/analysis/suitability" \
   -H "Content-Type: application/json" \
   -d '{"usable_area_sqm":9000,"annual_ghi_kwh_m2":1880,"flood_risk_score":0.2,"grid_distance_km":1.8}'
 ```
-
+---
 ## Development Notes
 
 - Backend configuration lives in `backend/app/core/config.py`.
@@ -166,7 +221,7 @@ curl -X POST "http://localhost:8000/api/v1/analysis/suitability" \
 - Sample seed data lives in `scripts/init-db.sql`.
 
 The scoring service is intentionally isolated from the API endpoint so future AI roof detection can update polygons, usable area, shading loss, and confidence metadata without changing route contracts.
-
+---
 ## License
 
 AGPL-3.0. See [LICENSE](LICENSE).
