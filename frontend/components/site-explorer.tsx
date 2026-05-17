@@ -306,7 +306,7 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
     const polygonSource = map?.getSource("solar-sites") as maplibregl.GeoJSONSource | undefined;
     polygonSource?.setData(filteredCollection);
 
-    if (map && map.isStyleLoaded()) {
+    if (map) {
       updateSelectionPaint(map, selectedId);
       syncHtmlMarkers({
         features: filteredFeatures,
@@ -332,7 +332,7 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
 
   useEffect(() => {
     const map = mapRef.current;
-    if (map && map.isStyleLoaded()) {
+    if (map) {
       updateSelectionPaint(map, selectedId);
       syncHtmlMarkers({
         features: filteredFeatures,
@@ -870,9 +870,7 @@ function syncHtmlMarkers({
 function clearHtmlMarkers(map: Map, markersRef: RefObject<maplibregl.Marker[]>) {
   markersRef.current.forEach((marker) => marker.remove());
   markersRef.current = [];
-  map.getContainer().querySelectorAll("[data-sola-marker='true']").forEach((element) => {
-    element.closest(".maplibregl-marker")?.remove();
-  });
+  map.getContainer().querySelectorAll(".maplibregl-marker").forEach((element) => element.remove());
 }
 
 function createHtmlMarker(site: SiteFeature, selected: boolean) {
