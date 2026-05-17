@@ -8,7 +8,7 @@ Returns a GeoJSON FeatureCollection of ranked solar candidate sites.
 
 Query parameters:
 
-- `city`: exact city filter, case-insensitive.
+- `district`: exact Kerala district filter, case-insensitive. `city` remains as a backwards-compatible alias.
 - `min_area_sqm`: minimum usable area.
 - `min_score`: minimum suitability score from 0 to 100.
 - `limit`: maximum number of sites.
@@ -16,7 +16,7 @@ Query parameters:
 Example:
 
 ```bash
-curl "http://localhost:8000/api/v1/sites?city=Kochi&min_area_sqm=8000&min_score=80"
+curl "http://localhost:8000/api/v1/sites?district=Ernakulam&min_area_sqm=8000&min_score=80"
 ```
 
 ## `POST /api/v1/analysis/suitability`

@@ -1,28 +1,37 @@
-name,city,state,asset_type,latitude,longitude,total_area_sqm,usable_area_sqm,annual_ghi_kwh_m2,flood_risk_score,grid_distance_km,suitability_score,estimated_capacity_kw,estimated_annual_generation_kwh,notes
-Technopark Phase 1,Thiruvananthapuram,Kerala,commercial_rooftop,8.5580,76.8810,56250,45000,1980,0.35,1.2,92.00,4500,6949800,Flagship IT campus
-Technopark Phase 3,Thiruvananthapuram,Kerala,commercial_rooftop,8.5500,76.8800,43750,35000,1980,0.35,2.0,91.84,3500,5405400,IT expansion area
-Technocity Pallippuram,Thiruvananthapuram,Kerala,commercial_rooftop,8.5900,76.8600,50000,40000,1980,0.30,5.0,88.96,4000,6177600,Emerging IT township
-Lulu Mall,Thiruvananthapuram,Kerala,commercial_rooftop,8.5153,76.8986,27500,22000,1980,0.40,3.0,86.28,2200,3397680,Largest mall in southern Kerala
-Government Secretariat,Thiruvananthapuram,Kerala,government,8.5245,76.9360,17500,14000,1980,0.40,0.8,86.76,1400,2162160,State administrative headquarters
-Infopark Kakkanad Phase 1,Kochi,Kerala,commercial_rooftop,10.0105,76.3640,52500,42000,1950,0.45,1.5,91.63,4200,6388200,Major IT hub Ernakulam
-Infopark Phase 2,Kochi,Kerala,commercial_rooftop,10.0150,76.3450,35000,28000,1950,0.45,1.8,87.63,2800,4258800,IT expansion
-Lulu Mall Kochi,Kochi,Kerala,commercial_rooftop,10.0275,76.3080,31250,25000,1950,0.50,2.5,85.31,2500,3802500,"One of India's biggest malls"
-Cochin International Airport,Cochin,Kerala,airport,10.1520,76.3920,56250,45000,1950,0.30,2.5,92.00,4500,6844500,Already has large solar installation
-Aster Medcity,Cochin,Kerala,institutional,10.0433,76.2781,22500,18000,1950,0.40,3.0,83.10,1800,2737800,Large multi-specialty hospital
-KINFRA Hi-Tech Park,Kalamassery,Kerala,industrial,10.0553,76.3542,31250,25000,1950,0.40,2.0,86.86,2500,3802500,Hi-tech industrial park
-Cochin SEZ,Kochi,Kerala,industrial,10.0200,76.3300,37500,30000,1950,0.45,1.8,88.18,3000,4563000,Special Economic Zone
-Thrissur KINFRA Park,Thrissur,Kerala,industrial,10.5200,76.2100,22500,18000,1960,0.45,4.0,81.82,1800,2751840,Central Kerala industrial area
-Thrissur Medical College,Thrissur,Kerala,institutional,10.5200,76.2200,18750,15000,1960,0.45,2.5,82.97,1500,2293200,Major medical campus
-KSIDC Kanjikode,Palakkad,Kerala,industrial,10.8500,76.6500,47500,38000,1970,0.55,3.5,88.11,3800,5839080,Large industrial zone
-Palakkad Railway Station,Palakkad,Kerala,transport_rooftop,10.7800,76.6500,10000,8000,1970,0.50,1.0,82.32,800,1229280,Major rail junction
-Kozhikode Medical College,Kozhikode,Kerala,institutional,11.2600,75.7800,20000,16000,1920,0.50,3.0,79.73,1600,2396160,North Kerala major hospital
-Kozhikode Railway Station,Kozhikode,Kerala,transport_rooftop,11.2460,75.7800,11875,9500,1920,0.50,1.0,80.00,950,1422720,Main station
-Lulu Mall Kannur,Kannur,Kerala,commercial_rooftop,11.8800,75.3700,17500,14000,1900,0.45,2.5,78.88,1400,2074800,Large retail mall
-Kannur International Airport,Kannur,Kerala,airport,11.9200,75.5500,22500,18000,1900,0.30,5.0,77.83,1800,2667600,New airport with good potential
-KINFRA Malappuram Park,Malappuram,Kerala,industrial,11.0500,76.0000,27500,22000,1940,0.45,4.0,81.92,2200,3329040,Techno Industrial Park
-Kollam KINFRA Park,Kollam,Kerala,industrial,8.8800,76.5800,22500,18000,1970,0.50,3.0,83.53,1800,2765880,Industrial development area
-Kottayam Medical College,Kottayam,Kerala,institutional,9.5800,76.5200,17500,14000,1960,0.55,2.8,81.32,1400,2140320,Major hospital campus
-Alappuzha Railway Station,Alappuzha,Kerala,transport_rooftop,9.4900,76.3300,8750,7000,1950,0.65,1.0,79.34,700,1064700,Backwater region station
-Pathanamthitta District Hospital,Pathanamthitta,Kerala,institutional,9.2600,76.7800,10625,8500,1970,0.50,4.0,78.08,850,1306110,District headquarters hospital
-Kalpetta Government Buildings,Kalpetta,Kerala,government,11.6100,76.0800,7500,6000,1880,0.40,6.0,70.00,600,879840,Wayanad district admin
-Kasaragod KINFRA Park,Kasaragod,Kerala,industrial,12.5000,74.9800,18750,15000,1850,0.45,5.0,72.45,1500,2164500,Northern industrial area
+district,name,state,asset_type,latitude,longitude,total_area_sqm,usable_area_sqm,annual_ghi_kwh_m2,flood_risk_score,grid_distance_km,suitability_score,estimated_capacity_kw,estimated_annual_generation_kwh,notes
+Thiruvananthapuram,Technopark Phase 1,Kerala,commercial_rooftop,8.5580,76.8810,56250,45000,1980,0.35,1.2,92.00,4500,6949800,Flagship IT campus
+Thiruvananthapuram,Technocity Pallippuram,Kerala,commercial_rooftop,8.5900,76.8600,50000,40000,1980,0.30,5.0,88.96,4000,6177600,Emerging IT township
+Thiruvananthapuram,Technopark Phase 3,Kerala,commercial_rooftop,8.5500,76.8800,43750,35000,1980,0.35,2.0,91.84,3500,5405400,Expansion area
+Thiruvananthapuram,Lulu Mall,Kerala,commercial_rooftop,8.5153,76.8986,27500,22000,1980,0.40,3.0,86.28,2200,3397680,Largest mall in southern Kerala
+Thiruvananthapuram,Government Secretariat,Kerala,government,8.5245,76.9360,17500,14000,1980,0.40,0.8,86.76,1400,2162160,State headquarters
+Kollam,Kollam KINFRA Park,Kerala,industrial,8.8800,76.5800,22500,18000,1970,0.50,3.0,83.53,1800,2765880,Industrial development area
+Kollam,Kollam Railway Station,Kerala,transport_rooftop,8.8900,76.5900,9375,7500,1970,0.55,1.0,81.65,750,1152450,Major rail station
+Pathanamthitta,Pathanamthitta District Hospital,Kerala,institutional,9.2600,76.7800,10625,8500,1970,0.50,4.0,78.08,850,1306110,District hospital campus
+Pathanamthitta,Pathanamthitta Government Buildings,Kerala,government,9.2700,76.7800,7500,6000,1970,0.45,3.5,77.84,600,921960,District admin complex
+Alappuzha,Alappuzha Medical College,Kerala,institutional,9.5000,76.3400,15000,12000,1950,0.60,2.5,79.93,1200,1825200,Major hospital
+Alappuzha,Alappuzha Railway Station,Kerala,transport_rooftop,9.4900,76.3300,8750,7000,1950,0.65,1.0,79.34,700,1064700,Backwater region station
+Kottayam,Kottayam Medical College,Kerala,institutional,9.5800,76.5200,17500,14000,1960,0.55,2.8,81.32,1400,2140320,Major medical campus
+Kottayam,Kottayam Railway Station,Kerala,transport_rooftop,9.5900,76.5300,8125,6500,1960,0.50,1.2,80.57,650,993720,Main station
+Idukki,Idukki District Hospital,Kerala,institutional,9.8500,76.9500,10625,8500,1850,0.35,4.5,71.14,850,1226550,District headquarters hospital
+Ernakulam,Cochin International Airport,Kerala,airport,10.1520,76.3920,56250,45000,1950,0.30,2.5,92.00,4500,6844500,World's first solar-powered airport
+Ernakulam,Infopark Kakkanad Phase 1,Kerala,commercial_rooftop,10.0105,76.3640,52500,42000,1950,0.45,1.5,91.63,4200,6388200,Major IT hub
+Ernakulam,Infopark Phase 2,Kerala,commercial_rooftop,10.0150,76.3450,35000,28000,1950,0.45,1.8,87.63,2800,4258800,IT expansion
+Ernakulam,Lulu Mall Kochi,Kerala,commercial_rooftop,10.0275,76.3080,31250,25000,1950,0.50,2.5,85.31,2500,3802500,One of India's largest malls
+Ernakulam,Aster Medcity,Kerala,institutional,10.0433,76.2781,22500,18000,1950,0.40,3.0,83.10,1800,2737800,Large multi-specialty hospital
+Thrissur,Thrissur KINFRA Park,Kerala,industrial,10.5200,76.2100,22500,18000,1960,0.45,4.0,81.82,1800,2751840,Central Kerala industrial area
+Thrissur,Thrissur Medical College,Kerala,institutional,10.5200,76.2200,18750,15000,1960,0.45,2.5,82.97,1500,2293200,Major medical campus
+Thrissur,Thrissur Railway Station,Kerala,transport_rooftop,10.5150,76.2100,10000,8000,1960,0.45,1.0,82.10,800,1223040,Main rail hub
+Palakkad,KSIDC Kanjikode,Kerala,industrial,10.8500,76.6500,47500,38000,1970,0.55,3.5,88.11,3800,5839080,Major industrial zone
+Palakkad,Palakkad Railway Station,Kerala,transport_rooftop,10.7800,76.6500,10000,8000,1970,0.50,1.0,82.32,800,1229280,Major rail junction
+Malappuram,KINFRA Malappuram Park,Kerala,industrial,11.0500,76.0000,27500,22000,1940,0.45,4.0,81.92,2200,3329040,Techno Industrial Park
+Malappuram,Malappuram Medical College,Kerala,institutional,11.0800,76.0000,16250,13000,1940,0.50,3.5,79.04,1300,1967160,District hospital
+Kozhikode,Calicut International Airport,Kerala,airport,11.1300,75.9500,25000,20000,1920,0.35,4.0,80.84,2000,2995200,Important northern airport
+Kozhikode,Kozhikode Medical College,Kerala,institutional,11.2600,75.7800,20000,16000,1920,0.50,3.0,79.73,1600,2396160,North Kerala major hospital
+Kozhikode,Kozhikode Railway Station,Kerala,transport_rooftop,11.2460,75.7800,11875,9500,1920,0.50,1.0,80.00,950,1422720,Main station
+Wayanad,Wayanad Medical College,Kerala,institutional,11.6500,76.1000,11250,9000,1880,0.45,5.5,70.94,900,1319760,District hospital
+Wayanad,Kalpetta Government Buildings,Kerala,government,11.6100,76.0800,7500,6000,1880,0.40,6.0,70.00,600,879840,Wayanad district admin
+Kannur,Kannur International Airport,Kerala,airport,11.9200,75.5500,22500,18000,1900,0.30,5.0,77.83,1800,2667600,New airport with strong potential
+Kannur,Lulu Mall Kannur,Kerala,commercial_rooftop,11.8800,75.3700,17500,14000,1900,0.45,2.5,78.88,1400,2074800,Large retail mall
+Kannur,Kannur Medical College,Kerala,institutional,11.8700,75.3700,13750,11000,1900,0.45,3.0,76.87,1100,1630200,Major hospital
+Kasaragod,Kasaragod KINFRA Park,Kerala,industrial,12.5000,74.9800,18750,15000,1850,0.45,5.0,72.45,1500,2164500,Northern industrial area
+Kasaragod,Kasaragod Government Complex,Kerala,government,12.4800,75.0000,8750,7000,1850,0.50,4.5,70.00,700,1010100,District headquarters

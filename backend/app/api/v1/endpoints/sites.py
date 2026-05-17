@@ -16,6 +16,7 @@ router = APIRouter(prefix="/sites", tags=["sites"])
 @router.get("", response_model=SolarSiteFeatureCollection)
 async def list_sites(
     city: str | None = Query(default=None, description="Exact city name filter, case-insensitive."),
+    district: str | None = Query(default=None, description="Exact Kerala district filter. Alias for city in the current schema."),
     min_area_sqm: float | None = Query(default=None, ge=0, description="Minimum usable area in square meters."),
     min_score: float | None = Query(default=None, ge=0, le=100, description="Minimum suitability score."),
     limit: int = Query(default=100, ge=1, description="Maximum number of returned sites."),
@@ -26,9 +27,10 @@ async def list_sites(
     service = SuitabilityService(settings)
 
     try:
+        location_filter = district or city
         return await service.list_sites(
             session,
-            city=city,
+            city=location_filter,
             min_area_sqm=min_area_sqm,
             min_score=min_score,
             limit=bounded_limit,

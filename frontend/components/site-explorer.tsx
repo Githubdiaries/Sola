@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type Dispatch, type MutableRefObject, type RefObject, type SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import maplibregl, { type Map, type MapLayerMouseEvent } from "maplibre-gl";
 import {
   Bell,
@@ -9,7 +9,6 @@ import {
   Minus,
   Plus,
   SlidersHorizontal,
-  X,
 } from "lucide-react";
 
 type SiteProperties = {
@@ -30,32 +29,30 @@ type SiteProperties = {
 
 export type SiteFeature = GeoJSON.Feature<GeoJSON.Polygon, SiteProperties>;
 type SiteCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon, SiteProperties>;
-type PointFeature = GeoJSON.Feature<GeoJSON.Point, SiteProperties>;
 
 type Filters = {
   assetType: string;
-  city: string;
+  district: string;
   minArea: number;
   minScore: number;
   query: string;
 };
 
 const numberFormatter = new Intl.NumberFormat("en-US");
-const cityOrder = [
+const districtOrder = [
   "Thiruvananthapuram",
-  "Kochi",
-  "Cochin",
-  "Kalamassery",
+  "Kollam",
+  "Pathanamthitta",
+  "Alappuzha",
+  "Kottayam",
+  "Idukki",
+  "Ernakulam",
   "Thrissur",
   "Palakkad",
-  "Kozhikode",
-  "Kannur",
   "Malappuram",
-  "Kollam",
-  "Kottayam",
-  "Alappuzha",
-  "Pathanamthitta",
-  "Kalpetta",
+  "Kozhikode",
+  "Wayanad",
+  "Kannur",
   "Kasaragod",
 ];
 
@@ -111,16 +108,16 @@ const mapStyle: maplibregl.StyleSpecification = {
 export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData: boolean }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
   const featuresRef = useRef<SiteFeature[]>([]);
   const selectedIdRef = useRef("");
   const [selectedSite, setSelectedSite] = useState<SiteFeature | null>(sites.features[0] ?? null);
   const [hoveredSite, setHoveredSite] = useState<SiteFeature | null>(null);
   const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number } | null>(null);
   const [areaUnit, setAreaUnit] = useState<"sqm" | "sqft">("sqm");
-  const [detailOpen, setDetailOpen] = useState(true);
   const [filters, setFilters] = useState<Filters>({
     assetType: "all",
-    city: "Thiruvananthapuram",
+    district: "Thiruvananthapuram",
     minArea: 0,
     minScore: 70,
     query: "",
@@ -129,15 +126,13 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
   const scopedFeatures = useMemo(
     () =>
       sites.features.filter(
-        (site) => site.properties.state === "Kerala" || cityOrder.includes(site.properties.city),
+        (site) => site.properties.state === "Kerala" || districtOrder.includes(site.properties.city),
       ),
     [sites.features],
   );
-  const cities = useMemo(
+  const districts = useMemo(
     () =>
-      Array.from(new Set(scopedFeatures.map((site) => site.properties.city))).sort(
-        (a, b) => cityOrder.indexOf(a) - cityOrder.indexOf(b),
-      ),
+      districtOrder.filter((district) => scopedFeatures.some((site) => site.properties.city === district)),
     [scopedFeatures],
   );
   const assetTypes = useMemo(
@@ -158,7 +153,7 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
 
       return (
         matchesQuery &&
-        properties.city === filters.city &&
+        properties.city === filters.district &&
         properties.suitability_score >= filters.minScore &&
         properties.usable_area_sqm >= filters.minArea &&
         (filters.assetType === "all" || filters.assetType === properties.asset_type)
@@ -170,21 +165,6 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
     () => ({
       ...emptyCollection,
       features: filteredFeatures,
-    }),
-    [filteredFeatures],
-  );
-
-  const pointCollection = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point, SiteProperties>>(
-    () => ({
-      type: "FeatureCollection",
-      features: filteredFeatures.map((feature) => ({
-        type: "Feature",
-        geometry: {
-          type: "Point",
-          coordinates: getPolygonCenter(feature),
-        },
-        properties: feature.properties,
-      })),
     }),
     [filteredFeatures],
   );
@@ -202,21 +182,19 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
       : 0;
 
   useEffect(() => {
-    if (cities.length > 0 && !cities.includes(filters.city)) {
-      setFilters((current) => ({ ...current, city: cities[0] }));
+    if (districts.length > 0 && !districts.includes(filters.district)) {
+      setFilters((current) => ({ ...current, district: districts[0] }));
     }
-  }, [cities, filters.city]);
+  }, [districts, filters.district]);
 
   useEffect(() => {
     if (!filteredFeatures.length) {
       setSelectedSite(null);
-      setDetailOpen(false);
       return;
     }
 
     if (!selectedSite || !filteredFeatures.some((site) => site.properties.id === selectedSite.properties.id)) {
       setSelectedSite(filteredFeatures[0]);
-      setDetailOpen(true);
     }
   }, [filteredFeatures, selectedSite]);
 
@@ -248,16 +226,11 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
         type: "geojson",
       });
 
-      map.addSource("solar-site-points", {
-        data: pointCollection,
-        type: "geojson",
-      });
-
       map.addLayer({
         id: "solar-sites-fill",
         paint: {
           "fill-color": scoreColorExpression(),
-          "fill-opacity": ["case", ["==", ["get", "id"], selectedIdRef.current], 0.45, 0.26],
+          "fill-opacity": ["case", ["==", ["get", "id"], selectedIdRef.current], 0.42, 0.22],
         },
         source: "solar-sites",
         type: "fill",
@@ -266,58 +239,26 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
       map.addLayer({
         id: "solar-sites-line",
         paint: {
-          "line-blur": 0.25,
+          "line-blur": 0.2,
           "line-color": scoreColorExpression(),
           "line-opacity": 0.96,
-          "line-width": ["case", ["==", ["get", "id"], selectedIdRef.current], 3.4, 1.8],
+          "line-width": ["case", ["==", ["get", "id"], selectedIdRef.current], 3.2, 1.7],
         },
         source: "solar-sites",
         type: "line",
       });
 
-      map.addLayer({
-        id: "solar-site-glow",
-        paint: {
-          "circle-blur": 0.72,
-          "circle-color": scoreColorExpression(),
-          "circle-opacity": 0.26,
-          "circle-radius": ["case", ["==", ["get", "id"], selectedIdRef.current], 27, 18],
-        },
-        source: "solar-site-points",
-        type: "circle",
-      });
-
-      map.addLayer({
-        id: "solar-site-points",
-        layout: {
-          "text-field": "📍",
-          "text-size": ["case", ["==", ["get", "id"], selectedIdRef.current], 34, 28],
-          "text-allow-overlap": true,
-          "text-anchor": "bottom",
-          "text-offset": [0, 0.35],
-        },
-        paint: {
-          "text-color": scoreColorExpression(),
-          "text-halo-color": "#f8fafd",
-          "text-halo-width": 0.7,
-          "text-opacity": 0.98,
-        },
-        source: "solar-site-points",
-        type: "symbol",
-      });
-
       const selectFeature = (event: MapLayerMouseEvent) => {
-        const feature = event.features?.[0] as SiteFeature | PointFeature | undefined;
+        const feature = event.features?.[0] as SiteFeature | undefined;
         const site = featuresRef.current.find((candidate) => candidate.properties.id === feature?.properties.id);
         if (site) {
           setSelectedSite(site);
-          setDetailOpen(true);
           flyToSite(map, site);
         }
       };
 
       const hoverFeature = (event: MapLayerMouseEvent) => {
-        const feature = event.features?.[0] as SiteFeature | PointFeature | undefined;
+        const feature = event.features?.[0] as SiteFeature | undefined;
         const site = featuresRef.current.find((candidate) => candidate.properties.id === feature?.properties.id);
         setHoveredSite(site ?? null);
         setHoverPosition(site ? { x: event.point.x, y: event.point.y } : null);
@@ -325,24 +266,35 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
       };
 
       map.on("click", "solar-sites-fill", selectFeature);
-      map.on("click", "solar-site-points", selectFeature);
       map.on("mousemove", "solar-sites-fill", hoverFeature);
-      map.on("mousemove", "solar-site-points", hoverFeature);
       map.on("mouseleave", "solar-sites-fill", () => {
         setHoveredSite(null);
         setHoverPosition(null);
         map.getCanvas().style.cursor = "";
       });
-      map.on("mouseleave", "solar-site-points", () => {
-        setHoveredSite(null);
-        setHoverPosition(null);
-        map.getCanvas().style.cursor = "";
-      });
 
-      fitToSites(map, filteredFeatures);
+      const currentFeatures = featuresRef.current.length ? featuresRef.current : filteredFeatures;
+      const currentCollection: SiteCollection = {
+        ...emptyCollection,
+        features: currentFeatures,
+      };
+      const source = map.getSource("solar-sites") as maplibregl.GeoJSONSource | undefined;
+      source?.setData(currentCollection);
+
+      syncSiteMarkers({
+        features: currentFeatures,
+        flyTo: (site) => flyToSite(map, site),
+        markersRef,
+        onSelect: setSelectedSite,
+        selectedId: selectedIdRef.current,
+        map,
+      });
+      fitToSites(map, currentFeatures);
     });
 
     return () => {
+      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current = [];
       map.remove();
       mapRef.current = null;
     };
@@ -351,13 +303,18 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
   useEffect(() => {
     const map = mapRef.current;
     const polygonSource = map?.getSource("solar-sites") as maplibregl.GeoJSONSource | undefined;
-    const pointSource = map?.getSource("solar-site-points") as maplibregl.GeoJSONSource | undefined;
-
     polygonSource?.setData(filteredCollection);
-    pointSource?.setData(pointCollection);
 
     if (map && map.isStyleLoaded()) {
       updateSelectionPaint(map, selectedId);
+      syncSiteMarkers({
+        features: filteredFeatures,
+        flyTo: (site) => flyToSite(map, site),
+        markersRef,
+        onSelect: setSelectedSite,
+        selectedId,
+        map,
+      });
       fitToSites(map, filteredFeatures);
     }
 
@@ -367,14 +324,22 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
       }
       return filteredFeatures[0] ?? null;
     });
-  }, [filteredCollection, filteredFeatures, pointCollection, selectedId]);
+  }, [filteredCollection, filteredFeatures, selectedId]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (map && map.isStyleLoaded()) {
       updateSelectionPaint(map, selectedId);
+      syncSiteMarkers({
+        features: filteredFeatures,
+        flyTo: (site) => flyToSite(map, site),
+        markersRef,
+        onSelect: setSelectedSite,
+        selectedId,
+        map,
+      });
     }
-  }, [selectedId]);
+  }, [filteredFeatures, selectedId]);
 
   return (
     <main className="min-h-screen bg-[#05060f] text-[#f8fafd]">
@@ -385,10 +350,17 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
           <FilterSidebar
             areaUnit={areaUnit}
             assetTypes={assetTypes}
-            cities={cities}
+            districts={districts}
             filters={filters}
+            onSelectSite={(site) => {
+              setSelectedSite(site);
+              flyToSite(mapRef.current, site);
+            }}
             setAreaUnit={setAreaUnit}
             setFilters={setFilters}
+            selectedId={selectedId}
+            sites={filteredFeatures}
+            topSite={topSite}
           />
 
           <section className="min-w-0 flex-1">
@@ -407,10 +379,6 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
               />
 
               <MapSummary avgScore={avgScore} count={filteredFeatures.length} totalArea={totalArea} totalCapacityKw={totalCapacityKw} />
-
-              {detailOpen && selectedSite ? (
-                <DetailPanel onClose={() => setDetailOpen(false)} site={selectedSite} />
-              ) : null}
             </div>
           </section>
 
@@ -418,7 +386,6 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
             features={filteredFeatures}
             onSelect={(site) => {
               setSelectedSite(site);
-              setDetailOpen(true);
               flyToSite(mapRef.current, site);
             }}
             selectedId={selectedId}
@@ -467,17 +434,25 @@ function TopNav({ query, setQuery }: { query: string; setQuery: (query: string) 
 function FilterSidebar({
   areaUnit,
   assetTypes,
-  cities,
+  districts,
   filters,
+  onSelectSite,
   setAreaUnit,
   setFilters,
+  selectedId,
+  sites,
+  topSite,
 }: {
   areaUnit: "sqm" | "sqft";
   assetTypes: string[];
-  cities: string[];
+  districts: string[];
   filters: Filters;
+  onSelectSite: (site: SiteFeature) => void;
   setAreaUnit: (unit: "sqm" | "sqft") => void;
-  setFilters: React.Dispatch<React.SetStateAction<Filters>>;
+  setFilters: Dispatch<SetStateAction<Filters>>;
+  selectedId: string;
+  sites: SiteFeature[];
+  topSite: SiteFeature | null;
 }) {
   const displayedArea = areaUnit === "sqm" ? filters.minArea : Math.round(filters.minArea * 10.7639);
   const areaInputValue = displayedArea === 0 ? "0" : String(displayedArea);
@@ -490,24 +465,29 @@ function FilterSidebar({
     <aside className="w-full shrink-0 rounded-2xl border border-[#1e2538] bg-[#0c0f1c]/88 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.26)] backdrop-blur lg:w-[292px] lg:overflow-auto">
       <div className="flex items-center justify-between border-b border-[#1e2538] pb-4">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#a3b4d0]">Filters</p>
-          <h2 className="mt-1 text-lg font-semibold text-[#f8fafd]">Site criteria</h2>
+          <h2 className="text-lg font-semibold text-[#f8fafd]">Filters</h2>
         </div>
         <SlidersHorizontal className="text-[#a3ff12]" size={18} />
       </div>
 
-      <div className="space-y-6 pt-5">
+      <div className="space-y-5 pt-5">
         <label className="block">
-          <span className="text-sm font-medium text-[#f8fafd]">City</span>
+          <span className="text-sm font-medium text-[#f8fafd]">District</span>
           <span className="relative mt-2 block">
             <select
               className="h-11 w-full appearance-none rounded-xl border border-[#1e2538] bg-[#141927] px-3 pr-10 text-sm text-[#f8fafd] outline-none transition focus:border-[#a3ff12]/60"
-              onChange={(event) => setFilters((current) => ({ ...current, city: event.target.value }))}
-              value={filters.city}
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  district: event.target.value,
+                  assetType: "all",
+                }))
+              }
+              value={filters.district}
             >
-              {cities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
+              {districts.map((district) => (
+                <option key={district} value={district}>
+                  {district}
                 </option>
               ))}
             </select>
@@ -593,8 +573,72 @@ function FilterSidebar({
             })}
           </div>
         </div>
+
+        <BestSiteList onSelectSite={onSelectSite} selectedId={selectedId} sites={sites} topSite={topSite} />
       </div>
     </aside>
+  );
+}
+
+function BestSiteList({
+  onSelectSite,
+  selectedId,
+  sites,
+  topSite,
+}: {
+  onSelectSite: (site: SiteFeature) => void;
+  selectedId: string;
+  sites: SiteFeature[];
+  topSite: SiteFeature | null;
+}) {
+  const rankedSites = (sites.length ? sites : topSite ? [topSite] : []).slice(0, 5);
+
+  return (
+    <section className="border-t border-[#1e2538] pt-5">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-[#f8fafd]">Best sites</h3>
+        <span className="text-xs text-[#a3b4d0]">{rankedSites.length} shown</span>
+      </div>
+
+      <div className="mt-3 space-y-2">
+        {rankedSites.map((site, index) => {
+          const active = selectedId === site.properties.id;
+          const capacityKw = site.properties.estimated_capacity_kw ?? site.properties.usable_area_sqm / 10;
+
+          return (
+            <button
+              className={`w-full rounded-xl border p-3 text-left transition ${
+                active
+                  ? "border-[#22c55e]/55 bg-[#22c55e]/10 shadow-[0_0_28px_rgba(34,197,94,0.12)]"
+                  : "border-[#1e2538] bg-[#141927]/70 hover:border-[#eab308]/45 hover:bg-[#141927]"
+              }`}
+              key={site.properties.id}
+              onClick={() => onSelectSite(site)}
+              type="button"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] text-[#a3b4d0]">Rank {index + 1}</p>
+                  <h4 className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-[#f8fafd]">{site.properties.name}</h4>
+                </div>
+                <ScorePill value={site.properties.suitability_score} />
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-2 text-xs text-[#a3b4d0]">
+                <span>{formatCompact(site.properties.usable_area_sqm)} m2</span>
+                <span>{formatCompact(capacityKw)} kWp</span>
+                <span>{site.properties.grid_distance_km.toFixed(1)} km</span>
+              </div>
+            </button>
+          );
+        })}
+
+        {rankedSites.length === 0 ? (
+          <p className="rounded-xl border border-[#1e2538] bg-[#141927]/70 p-3 text-sm text-[#a3b4d0]">
+            No sites match this district and filter set.
+          </p>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
@@ -607,7 +651,7 @@ function MapCanvas({
 }: {
   hoveredSite: SiteFeature | null;
   hoverPosition: { x: number; y: number } | null;
-  mapContainerRef: React.RefObject<HTMLDivElement | null>;
+  mapContainerRef: RefObject<HTMLDivElement | null>;
   onFit: () => void;
   onZoomDelta: (delta: number) => void;
 }) {
@@ -681,58 +725,6 @@ function SummaryTile({ className = "", label, value }: { className?: string; lab
   );
 }
 
-function DetailPanel({ onClose, site }: { onClose: () => void; site: SiteFeature }) {
-  const properties = site.properties;
-  const capacityKw = properties.estimated_capacity_kw ?? properties.usable_area_sqm / 10;
-  const cityLine = [properties.city, properties.state].filter(Boolean).join(", ");
-
-  return (
-    <>
-      <aside className="absolute left-5 top-5 z-20 w-[300px] rounded-2xl border border-[#1e2538] bg-[#0c0f1c]/92 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.42)] backdrop-blur-xl max-md:hidden">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-3">
-              <h3 className="min-w-0 text-lg font-semibold leading-tight tracking-[-0.02em] text-[#f8fafd]">{properties.name}</h3>
-              <ScorePill value={properties.suitability_score} />
-            </div>
-            <p className="mt-1 text-sm text-[#a3b4d0]">{cityLine}</p>
-          </div>
-          <button className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={onClose} type="button">
-            <X size={15} />
-          </button>
-        </div>
-
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          <InfoMetric label="Area" value={`${formatCompact(properties.usable_area_sqm)} m2`} />
-          <InfoMetric label="Est." value={`${formatCompact(capacityKw)} kWp`} />
-          <InfoMetric label="Grid" value={`${properties.grid_distance_km.toFixed(1)} km`} />
-        </div>
-
-      </aside>
-
-      <aside className="absolute inset-x-3 bottom-3 z-20 rounded-2xl border border-[#1e2538] bg-[#0c0f1c]/94 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.5)] backdrop-blur-xl md:hidden">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="min-w-0 text-base font-semibold leading-tight text-[#f8fafd]">{properties.name}</h3>
-              <ScorePill value={properties.suitability_score} />
-            </div>
-            <p className="mt-1 text-xs text-[#a3b4d0]">{cityLine}</p>
-          </div>
-          <button className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={onClose} type="button">
-            <X size={15} />
-          </button>
-        </div>
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <InfoMetric label="Area" value={`${formatCompact(properties.usable_area_sqm)} m2`} />
-          <InfoMetric label="Est." value={`${formatCompact(capacityKw)} kWp`} />
-          <InfoMetric label="Score" value={`${Math.round(properties.suitability_score)}/100`} />
-        </div>
-      </aside>
-    </>
-  );
-}
-
 function MobileRankedStrip({
   features,
   onSelect,
@@ -799,15 +791,85 @@ function scoreColorExpression() {
     "interpolate",
     ["linear"],
     ["get", "suitability_score"],
+    0,
+    "#ef4444",
+    69.99,
+    "#ef4444",
     70,
-    "#cf3f35",
-    78,
-    "#c8892b",
-    84,
-    "#c8cf34",
-    90,
-    "#17a44a",
+    "#eab308",
+    85,
+    "#eab308",
+    85.01,
+    "#22c55e",
+    100,
+    "#22c55e",
   ] as maplibregl.ExpressionSpecification;
+}
+
+function syncSiteMarkers({
+  features,
+  flyTo,
+  markersRef,
+  map,
+  onSelect,
+  selectedId,
+}: {
+  features: SiteFeature[];
+  flyTo: (site: SiteFeature) => void;
+  markersRef: MutableRefObject<maplibregl.Marker[]>;
+  map: Map;
+  onSelect: (site: SiteFeature) => void;
+  selectedId: string;
+}) {
+  markersRef.current.forEach((marker) => marker.remove());
+  map.getContainer().querySelectorAll(".maplibregl-marker").forEach((markerElement) => {
+    markerElement.remove();
+  });
+  markersRef.current = features.map((site) => {
+    const element = createSiteMarkerElement(site, selectedId === site.properties.id);
+    element.addEventListener("click", (event) => {
+      event.stopPropagation();
+      onSelect(site);
+      flyTo(site);
+    });
+
+    return new maplibregl.Marker({
+      anchor: "bottom",
+      element,
+    })
+      .setLngLat(getPolygonCenter(site))
+      .addTo(map);
+  });
+}
+
+function createSiteMarkerElement(site: SiteFeature, selected: boolean) {
+  const score = Math.round(site.properties.suitability_score);
+  const tone = score > 85 ? "green" : score >= 70 ? "amber" : "red";
+  const element = document.createElement("button");
+  element.type = "button";
+  element.className = `sola-marker ${selected ? "is-selected" : ""}`;
+  element.dataset.tone = tone;
+  element.setAttribute("aria-label", `${site.properties.name}, score ${score}`);
+  element.innerHTML = `
+    <span class="sola-marker-pin" aria-hidden="true">
+      <span class="sola-marker-dot"></span>
+    </span>
+    <span class="sola-marker-tooltip">${escapeHtml(site.properties.name)}</span>
+  `;
+  return element;
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => {
+    const entities: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;",
+    };
+    return entities[character];
+  });
 }
 
 function updateSelectionPaint(map: Map, selectedId: string) {
@@ -815,10 +877,8 @@ function updateSelectionPaint(map: Map, selectedId: string) {
     return;
   }
 
-  map.setPaintProperty("solar-sites-fill", "fill-opacity", ["case", ["==", ["get", "id"], selectedId], 0.45, 0.26]);
-  map.setPaintProperty("solar-sites-line", "line-width", ["case", ["==", ["get", "id"], selectedId], 3.4, 1.8]);
-  map.setPaintProperty("solar-site-glow", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 27, 18]);
-  map.setLayoutProperty("solar-site-points", "text-size", ["case", ["==", ["get", "id"], selectedId], 34, 28]);
+  map.setPaintProperty("solar-sites-fill", "fill-opacity", ["case", ["==", ["get", "id"], selectedId], 0.42, 0.22]);
+  map.setPaintProperty("solar-sites-line", "line-width", ["case", ["==", ["get", "id"], selectedId], 3.2, 1.7]);
 }
 
 function fitToSites(map: Map | null, features: SiteFeature[]) {
@@ -834,7 +894,7 @@ function fitToSites(map: Map | null, features: SiteFeature[]) {
   map.fitBounds(bounds, {
     duration: 900,
     maxZoom: features.length > 1 ? 15.4 : 16.2,
-    padding: { bottom: 56, left: 420, right: 72, top: 56 },
+    padding: getResponsiveMapPadding(map, "overview"),
   });
 }
 
@@ -851,8 +911,19 @@ function flyToSite(map: Map | null, feature: SiteFeature) {
   map.fitBounds(bounds, {
     duration: 780,
     maxZoom: 17,
-    padding: { bottom: 140, left: 420, right: 120, top: 140 },
+    padding: getResponsiveMapPadding(map, "site"),
   });
+}
+
+function getResponsiveMapPadding(map: Map, mode: "overview" | "site") {
+  const width = map.getCanvas().clientWidth;
+  const height = map.getCanvas().clientHeight;
+  const left = Math.min(mode === "site" ? 320 : 360, Math.max(32, Math.floor(width * 0.2)));
+  const right = Math.min(mode === "site" ? 96 : 72, Math.max(28, Math.floor(width * 0.06)));
+  const top = Math.min(mode === "site" ? 104 : 56, Math.max(28, Math.floor(height * 0.08)));
+  const bottom = Math.min(mode === "site" ? 104 : 56, Math.max(28, Math.floor(height * 0.08)));
+
+  return { bottom, left, right, top };
 }
 
 function nudgeZoom(map: Map | null, delta: number) {
