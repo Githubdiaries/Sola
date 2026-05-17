@@ -818,21 +818,12 @@ function ScorePill({ large = false, value }: { large?: boolean; value: number })
 
 function scoreColorExpression() {
   return [
-    "interpolate",
-    ["linear"],
-    ["get", "suitability_score"],
-    0,
-    "#ffe500",
-    70,
-    "#ffe500",
-    78,
-    "#a3ff12",
-    85,
-    "#a3ff12",
-    90,
+    "case",
+    [">", ["get", "suitability_score"], 85],
     "#22c55e",
-    100,
-    "#22c55e",
+    [">=", ["get", "suitability_score"], 70],
+    "#eab308",
+    "#ef4444",
   ] as maplibregl.ExpressionSpecification;
 }
 
