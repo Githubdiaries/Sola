@@ -6,7 +6,6 @@ import {
   Bell,
   ChevronDown,
   Layers,
-  RotateCcw,
   Minus,
   Plus,
   SlidersHorizontal,
@@ -30,7 +29,6 @@ type SiteProperties = {
 
 export type SiteFeature = GeoJSON.Feature<GeoJSON.Polygon, SiteProperties>;
 type SiteCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon, SiteProperties>;
-type PointFeature = GeoJSON.Feature<GeoJSON.Point, SiteProperties>;
 
 type Filters = {
   assetType: string;
@@ -110,12 +108,14 @@ const mapStyle: maplibregl.StyleSpecification = {
 export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData: boolean }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
   const featuresRef = useRef<SiteFeature[]>([]);
   const selectedIdRef = useRef("");
   const [selectedSite, setSelectedSite] = useState<SiteFeature | null>(sites.features[0] ?? null);
   const [hoveredSite, setHoveredSite] = useState<SiteFeature | null>(null);
   const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number } | null>(null);
   const [areaUnit, setAreaUnit] = useState<"sqm" | "sqft">("sqm");
+  const [districtZoomedIn, setDistrictZoomedIn] = useState(false);
   const [filters, setFilters] = useState<Filters>({
     assetType: "all",
     district: "Thiruvananthapuram",
@@ -167,11 +167,6 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
       ...emptyCollection,
       features: filteredFeatures,
     }),
-    [filteredFeatures],
-  );
-
-  const pointCollection = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point, SiteProperties>>(
-    () => toPointCollection(filteredFeatures),
     [filteredFeatures],
   );
 
@@ -232,13 +227,6 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
         type: "geojson",
       });
 
-      map.addSource("solar-site-points", {
-        data: pointCollection,
-        type: "geojson",
-      });
-
-      registerPinImages(map);
-
       map.addLayer({
         id: "solar-sites-fill",
         paint: {
@@ -261,42 +249,8 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
         type: "line",
       });
 
-      map.addLayer({
-        id: "solar-site-pin-glow",
-        paint: {
-          "circle-blur": 0.82,
-          "circle-color": scoreColorExpression(),
-          "circle-opacity": ["case", ["==", ["get", "id"], selectedIdRef.current], 0.34, 0],
-          "circle-radius": ["case", ["==", ["get", "id"], selectedIdRef.current], 30, 0],
-        },
-        source: "solar-site-points",
-        type: "circle",
-      });
-
-      map.addLayer({
-        id: "solar-site-pins",
-        layout: {
-          "icon-allow-overlap": true,
-          "icon-anchor": "bottom",
-          "icon-image": [
-            "case",
-            [">", ["get", "suitability_score"], 85],
-            "sola-pin-green",
-            [">=", ["get", "suitability_score"], 70],
-            "sola-pin-amber",
-            "sola-pin-red",
-          ],
-          "icon-size": ["case", ["==", ["get", "id"], selectedIdRef.current], 1.02, 0.86],
-        },
-        paint: {
-          "icon-opacity": 0.98,
-        },
-        source: "solar-site-points",
-        type: "symbol",
-      });
-
       const selectFeature = (event: MapLayerMouseEvent) => {
-        const feature = event.features?.[0] as SiteFeature | PointFeature | undefined;
+        const feature = event.features?.[0] as SiteFeature | undefined;
         const site = featuresRef.current.find((candidate) => candidate.properties.id === feature?.properties.id);
         if (site) {
           setSelectedSite(site);
@@ -305,7 +259,7 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
       };
 
       const hoverFeature = (event: MapLayerMouseEvent) => {
-        const feature = event.features?.[0] as SiteFeature | PointFeature | undefined;
+        const feature = event.features?.[0] as SiteFeature | undefined;
         const site = featuresRef.current.find((candidate) => candidate.properties.id === feature?.properties.id);
         setHoveredSite(site ?? null);
         setHoverPosition(site ? { x: event.point.x, y: event.point.y } : null);
@@ -313,15 +267,8 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
       };
 
       map.on("click", "solar-sites-fill", selectFeature);
-      map.on("click", "solar-site-pins", selectFeature);
       map.on("mousemove", "solar-sites-fill", hoverFeature);
-      map.on("mousemove", "solar-site-pins", hoverFeature);
       map.on("mouseleave", "solar-sites-fill", () => {
-        setHoveredSite(null);
-        setHoverPosition(null);
-        map.getCanvas().style.cursor = "";
-      });
-      map.on("mouseleave", "solar-site-pins", () => {
         setHoveredSite(null);
         setHoverPosition(null);
         map.getCanvas().style.cursor = "";
@@ -333,13 +280,22 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
         features: currentFeatures,
       };
       const source = map.getSource("solar-sites") as maplibregl.GeoJSONSource | undefined;
-      const pointSource = map.getSource("solar-site-points") as maplibregl.GeoJSONSource | undefined;
       source?.setData(currentCollection);
-      pointSource?.setData(toPointCollection(currentFeatures));
+      syncHtmlMarkers({
+        features: currentFeatures,
+        map,
+        markersRef,
+        onSelect: (site) => {
+          setSelectedSite(site);
+          flyToSite(map, site);
+        },
+        selectedId: selectedIdRef.current,
+      });
       fitToSites(map, currentFeatures);
     });
 
     return () => {
+      clearHtmlMarkers(map, markersRef);
       map.remove();
       mapRef.current = null;
     };
@@ -348,13 +304,22 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
   useEffect(() => {
     const map = mapRef.current;
     const polygonSource = map?.getSource("solar-sites") as maplibregl.GeoJSONSource | undefined;
-    const pointsSource = map?.getSource("solar-site-points") as maplibregl.GeoJSONSource | undefined;
     polygonSource?.setData(filteredCollection);
-    pointsSource?.setData(pointCollection);
 
     if (map && map.isStyleLoaded()) {
       updateSelectionPaint(map, selectedId);
+      syncHtmlMarkers({
+        features: filteredFeatures,
+        map,
+        markersRef,
+        onSelect: (site) => {
+          setSelectedSite(site);
+          flyToSite(map, site);
+        },
+        selectedId,
+      });
       fitToSites(map, filteredFeatures);
+      setDistrictZoomedIn(false);
     }
 
     setSelectedSite((current) => {
@@ -363,14 +328,40 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
       }
       return filteredFeatures[0] ?? null;
     });
-  }, [filteredCollection, filteredFeatures, pointCollection, selectedId]);
+  }, [filteredCollection, filteredFeatures]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (map && map.isStyleLoaded()) {
       updateSelectionPaint(map, selectedId);
+      syncHtmlMarkers({
+        features: filteredFeatures,
+        map,
+        markersRef,
+        onSelect: (site) => {
+          setSelectedSite(site);
+          flyToSite(map, site);
+        },
+        selectedId,
+      });
     }
-  }, [selectedId]);
+  }, [filteredFeatures, selectedId]);
+
+  const toggleDistrictFocus = () => {
+    const map = mapRef.current;
+    if (!map || filteredFeatures.length === 0) {
+      return;
+    }
+
+    if (districtZoomedIn) {
+      fitToSites(map, filteredFeatures);
+      setDistrictZoomedIn(false);
+      return;
+    }
+
+    zoomToDistrictDetail(map, filteredFeatures);
+    setDistrictZoomedIn(true);
+  };
 
   return (
     <main className="min-h-screen bg-[#05060f] text-[#f8fafd]">
@@ -402,11 +393,11 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
 
             <div className="relative h-[760px] overflow-hidden rounded-2xl border border-[#1e2538] bg-[#0c0f1c] shadow-[0_28px_90px_rgba(0,0,0,0.42)] lg:h-[calc(100vh-142px)]">
               <MapCanvas
+                districtZoomedIn={districtZoomedIn}
                 hoveredSite={hoveredSite}
                 hoverPosition={hoverPosition}
                 mapContainerRef={mapContainerRef}
-                onFit={() => fitToSites(mapRef.current, filteredFeatures)}
-                onReset={() => fitToSites(mapRef.current, filteredFeatures)}
+                onToggleFocus={toggleDistrictFocus}
                 onZoomDelta={(delta) => nudgeZoom(mapRef.current, delta)}
               />
 
@@ -675,18 +666,18 @@ function BestSiteList({
 }
 
 function MapCanvas({
+  districtZoomedIn,
   hoveredSite,
   hoverPosition,
   mapContainerRef,
-  onFit,
-  onReset,
+  onToggleFocus,
   onZoomDelta,
 }: {
+  districtZoomedIn: boolean;
   hoveredSite: SiteFeature | null;
   hoverPosition: { x: number; y: number } | null;
   mapContainerRef: RefObject<HTMLDivElement | null>;
-  onFit: () => void;
-  onReset: () => void;
+  onToggleFocus: () => void;
   onZoomDelta: (delta: number) => void;
 }) {
   return (
@@ -701,11 +692,13 @@ function MapCanvas({
         <button className="grid h-10 w-11 place-items-center border-l border-[#1e2538] text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={() => onZoomDelta(-0.5)} type="button">
           <Minus size={16} />
         </button>
-        <button className="grid h-10 w-11 place-items-center border-l border-[#1e2538] text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={onFit} type="button">
+        <button
+          aria-label={districtZoomedIn ? "Zoom back to district" : "Zoom into district"}
+          className="grid h-10 w-11 place-items-center border-l border-[#1e2538] text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]"
+          onClick={onToggleFocus}
+          type="button"
+        >
           <Layers size={16} />
-        </button>
-        <button className="grid h-10 w-11 place-items-center border-l border-[#1e2538] text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={onReset} type="button">
-          <RotateCcw size={15} />
         </button>
       </div>
 
@@ -825,21 +818,12 @@ function ScorePill({ large = false, value }: { large?: boolean; value: number })
 
 function scoreColorExpression() {
   return [
-    "interpolate",
-    ["linear"],
-    ["get", "suitability_score"],
-    0,
-    "#ffe500",
-    70,
-    "#ffe500",
-    78,
-    "#a3ff12",
-    85,
-    "#a3ff12",
-    90,
+    "case",
+    [">", ["get", "suitability_score"], 85],
     "#22c55e",
-    100,
-    "#22c55e",
+    [">=", ["get", "suitability_score"], 70],
+    "#eab308",
+    "#ef4444",
   ] as maplibregl.ExpressionSpecification;
 }
 
@@ -850,81 +834,88 @@ function updateSelectionPaint(map: Map, selectedId: string) {
 
   map.setPaintProperty("solar-sites-fill", "fill-opacity", ["case", ["==", ["get", "id"], selectedId], 0.42, 0.22]);
   map.setPaintProperty("solar-sites-line", "line-width", ["case", ["==", ["get", "id"], selectedId], 3.2, 1.7]);
-  if (map.getLayer("solar-site-pins")) {
-    map.setLayoutProperty("solar-site-pins", "icon-size", ["case", ["==", ["get", "id"], selectedId], 1.02, 0.86]);
-  }
-  if (map.getLayer("solar-site-pin-glow")) {
-    map.setPaintProperty("solar-site-pin-glow", "circle-opacity", ["case", ["==", ["get", "id"], selectedId], 0.34, 0]);
-    map.setPaintProperty("solar-site-pin-glow", "circle-radius", ["case", ["==", ["get", "id"], selectedId], 30, 0]);
-  }
 }
 
-function registerPinImages(map: Map) {
-  const pinColors = {
-    amber: "#ffe500",
-    green: "#22c55e",
-    red: "#ef4444",
-  };
+function syncHtmlMarkers({
+  features,
+  map,
+  markersRef,
+  onSelect,
+  selectedId,
+}: {
+  features: SiteFeature[];
+  map: Map;
+  markersRef: RefObject<maplibregl.Marker[]>;
+  onSelect: (site: SiteFeature) => void;
+  selectedId: string;
+}) {
+  clearHtmlMarkers(map, markersRef);
 
-  Object.entries(pinColors).forEach(([name, color]) => {
-    const imageName = `sola-pin-${name}`;
-    if (!map.hasImage(imageName)) {
-      map.addImage(imageName, createPinImage(color), { pixelRatio: 2 });
-    }
+  markersRef.current = features.map((site) => {
+    const markerElement = createHtmlMarker(site, selectedId === site.properties.id);
+    markerElement.addEventListener("click", (event) => {
+      event.stopPropagation();
+      onSelect(site);
+    });
+
+    return new maplibregl.Marker({
+      anchor: "bottom",
+      element: markerElement,
+    })
+      .setLngLat(getPolygonCenter(site))
+      .addTo(map);
   });
 }
 
-function createPinImage(fillColor: string) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 96;
-  canvas.height = 116;
-  const context = canvas.getContext("2d");
-
-  if (!context) {
-    throw new Error("Canvas is unavailable for map marker rendering.");
-  }
-
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  context.save();
-  context.shadowColor = "rgba(0, 0, 0, 0.45)";
-  context.shadowBlur = 14;
-  context.shadowOffsetY = 9;
-  drawPinPath(context);
-  context.fillStyle = fillColor;
-  context.fill();
-  context.restore();
-
-  const gradient = context.createLinearGradient(22, 12, 74, 94);
-  gradient.addColorStop(0, "rgba(255,255,255,0.3)");
-  gradient.addColorStop(0.46, fillColor);
-  gradient.addColorStop(1, "rgba(0,0,0,0.18)");
-
-  drawPinPath(context);
-  context.fillStyle = gradient;
-  context.fill();
-  context.lineWidth = 4;
-  context.strokeStyle = "rgba(248,250,253,0.82)";
-  context.stroke();
-
-  context.beginPath();
-  context.arc(48, 43, 12, 0, Math.PI * 2);
-  context.fillStyle = "rgba(248,250,253,0.94)";
-  context.fill();
-  context.lineWidth = 2;
-  context.strokeStyle = "rgba(5,6,15,0.18)";
-  context.stroke();
-
-  return context.getImageData(0, 0, canvas.width, canvas.height);
+function clearHtmlMarkers(map: Map, markersRef: RefObject<maplibregl.Marker[]>) {
+  markersRef.current.forEach((marker) => marker.remove());
+  markersRef.current = [];
+  map.getContainer().querySelectorAll("[data-sola-marker='true']").forEach((element) => {
+    element.closest(".maplibregl-marker")?.remove();
+  });
 }
 
-function drawPinPath(context: CanvasRenderingContext2D) {
-  context.beginPath();
-  context.moveTo(48, 108);
-  context.bezierCurveTo(41, 92, 17, 71, 17, 45);
-  context.bezierCurveTo(17, 20, 31, 8, 48, 8);
-  context.bezierCurveTo(65, 8, 79, 20, 79, 45);
-  context.bezierCurveTo(79, 71, 55, 92, 48, 108);
-  context.closePath();
+function createHtmlMarker(site: SiteFeature, selected: boolean) {
+  const score = site.properties.suitability_score;
+  const element = document.createElement("button");
+  element.type = "button";
+  element.className = `sola-html-marker-shell${selected ? " is-selected" : ""}`;
+  element.dataset.solaMarker = "true";
+  element.dataset.tone = getMarkerTone(score);
+  element.setAttribute("aria-label", `Select ${site.properties.name}`);
+  element.innerHTML = `
+    <span class="sola-html-marker-glow" aria-hidden="true"></span>
+    <span class="sola-html-marker-pin" aria-hidden="true">
+      <span class="sola-html-marker-dot"></span>
+    </span>
+    <span class="sola-html-marker-tooltip">${escapeHtml(site.properties.name)}</span>
+  `;
+  return element;
+}
+
+function getMarkerTone(score: number) {
+  if (score > 85) {
+    return "green";
+  }
+
+  if (score >= 70) {
+    return "amber";
+  }
+
+  return "red";
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => {
+    const replacements: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return replacements[character];
+  });
 }
 
 function fitToSites(map: Map | null, features: SiteFeature[]) {
@@ -941,6 +932,23 @@ function fitToSites(map: Map | null, features: SiteFeature[]) {
     duration: 900,
     maxZoom: features.length > 1 ? 12.1 : 13.2,
     padding: getResponsiveMapPadding(map, "overview"),
+  });
+}
+
+function zoomToDistrictDetail(map: Map | null, features: SiteFeature[]) {
+  if (!map) {
+    return;
+  }
+
+  const bounds = getFeatureBounds(features);
+  if (!bounds) {
+    return;
+  }
+
+  map.fitBounds(bounds, {
+    duration: 760,
+    maxZoom: features.length > 1 ? 15.6 : 16.6,
+    padding: getResponsiveMapPadding(map, "detail"),
   });
 }
 
@@ -961,27 +969,14 @@ function flyToSite(map: Map | null, feature: SiteFeature) {
   });
 }
 
-function toPointCollection(features: SiteFeature[]): GeoJSON.FeatureCollection<GeoJSON.Point, SiteProperties> {
-  return {
-    type: "FeatureCollection",
-    features: features.map((feature) => ({
-      type: "Feature",
-      geometry: {
-        type: "Point",
-        coordinates: getPolygonCenter(feature),
-      },
-      properties: feature.properties,
-    })),
-  };
-}
-
-function getResponsiveMapPadding(map: Map, mode: "overview" | "site") {
+function getResponsiveMapPadding(map: Map, mode: "overview" | "site" | "detail") {
   const width = map.getCanvas().clientWidth;
   const height = map.getCanvas().clientHeight;
-  const left = Math.min(mode === "site" ? 320 : 360, Math.max(32, Math.floor(width * 0.2)));
-  const right = Math.min(mode === "site" ? 96 : 72, Math.max(28, Math.floor(width * 0.06)));
-  const top = Math.min(mode === "site" ? 104 : 56, Math.max(28, Math.floor(height * 0.08)));
-  const bottom = Math.min(mode === "site" ? 104 : 56, Math.max(28, Math.floor(height * 0.08)));
+  const isTight = mode === "site" || mode === "detail";
+  const left = Math.min(isTight ? 320 : 360, Math.max(32, Math.floor(width * 0.2)));
+  const right = Math.min(isTight ? 96 : 72, Math.max(28, Math.floor(width * 0.06)));
+  const top = Math.min(isTight ? 104 : 56, Math.max(28, Math.floor(height * 0.08)));
+  const bottom = Math.min(isTight ? 104 : 56, Math.max(28, Math.floor(height * 0.08)));
 
   return { bottom, left, right, top };
 }
