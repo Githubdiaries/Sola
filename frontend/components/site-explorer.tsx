@@ -751,7 +751,7 @@ function MapSummary({
   totalCapacityKw: number;
 }) {
   return (
-    <div className="pointer-events-none absolute right-4 top-4 z-10 hidden w-[150px] flex-col gap-1.5 md:flex">
+    <div className="pointer-events-none absolute left-4 top-4 z-10 hidden w-[150px] flex-col gap-1.5 md:flex">
       <SummaryTile label="Sites" value={`${count}`} />
       <SummaryTile label="Avg Score" value={`${avgScore.toFixed(0)}%`} />
       <SummaryTile label="Capacity" value={`${formatCompact(totalCapacityKw)} kWp`} />
