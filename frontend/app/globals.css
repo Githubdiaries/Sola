@@ -95,9 +95,9 @@ textarea {
 }
 
 .sola-html-marker-shell[data-tone="amber"] {
-  --pin: #ffe500;
-  --pin-dark: #9a8300;
-  --pin-glow: rgba(255, 229, 0, 0.34);
+  --pin: #eab308;
+  --pin-dark: #9a6a06;
+  --pin-glow: rgba(234, 179, 8, 0.34);
 }
 
 .sola-html-marker-shell[data-tone="red"] {
