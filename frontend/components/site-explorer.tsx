@@ -751,11 +751,11 @@ function MapSummary({
   totalCapacityKw: number;
 }) {
   return (
-    <div className="pointer-events-none absolute right-4 top-4 z-10 hidden w-[318px] grid-cols-3 gap-1.5 md:grid">
+    <div className="pointer-events-none absolute right-4 top-4 z-10 hidden w-[150px] flex-col gap-1.5 md:flex">
       <SummaryTile label="Sites" value={`${count}`} />
       <SummaryTile label="Avg Score" value={`${avgScore.toFixed(0)}%`} />
       <SummaryTile label="Capacity" value={`${formatCompact(totalCapacityKw)} kWp`} />
-      <SummaryTile className="col-span-2" label="Filtered roof area" value={`${formatCompact(totalArea)} m2`} />
+      <SummaryTile label="Filtered roof area" value={`${formatCompact(totalArea)} m2`} />
     </div>
   );
 }
