@@ -38,6 +38,8 @@ type Filters = {
   query: string;
 };
 
+type MapFocusStep = 0 | 1 | 2;
+
 const numberFormatter = new Intl.NumberFormat("en-US");
 const districtOrder = [
   "Thiruvananthapuram",
@@ -115,7 +117,7 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
   const [hoveredSite, setHoveredSite] = useState<SiteFeature | null>(null);
   const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number } | null>(null);
   const [areaUnit, setAreaUnit] = useState<"sqm" | "sqft">("sqm");
-  const [districtZoomedIn, setDistrictZoomedIn] = useState(false);
+  const [mapFocusStep, setMapFocusStep] = useState<MapFocusStep>(0);
   const [filters, setFilters] = useState<Filters>({
     assetType: "all",
     district: "Thiruvananthapuram",
@@ -319,7 +321,7 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
         selectedId,
       });
       fitToSites(map, filteredFeatures);
-      setDistrictZoomedIn(false);
+      setMapFocusStep(0);
     }
 
     setSelectedSite((current) => {
@@ -353,14 +355,20 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
       return;
     }
 
-    if (districtZoomedIn) {
-      fitToSites(map, filteredFeatures);
-      setDistrictZoomedIn(false);
+    if (mapFocusStep === 0) {
+      zoomToDistrictDetail(map, filteredFeatures);
+      setMapFocusStep(1);
       return;
     }
 
-    zoomToDistrictDetail(map, filteredFeatures);
-    setDistrictZoomedIn(true);
+    if (mapFocusStep === 1) {
+      fitToSites(map, filteredFeatures);
+      setMapFocusStep(2);
+      return;
+    }
+
+    fitToKerala(map, scopedFeatures);
+    setMapFocusStep(0);
   };
 
   return (
@@ -393,7 +401,7 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
 
             <div className="relative h-[760px] overflow-hidden rounded-2xl border border-[#1e2538] bg-[#0c0f1c] shadow-[0_28px_90px_rgba(0,0,0,0.42)] lg:h-[calc(100vh-142px)]">
               <MapCanvas
-                districtZoomedIn={districtZoomedIn}
+                mapFocusStep={mapFocusStep}
                 hoveredSite={hoveredSite}
                 hoverPosition={hoverPosition}
                 mapContainerRef={mapContainerRef}
@@ -666,14 +674,14 @@ function BestSiteList({
 }
 
 function MapCanvas({
-  districtZoomedIn,
+  mapFocusStep,
   hoveredSite,
   hoverPosition,
   mapContainerRef,
   onToggleFocus,
   onZoomDelta,
 }: {
-  districtZoomedIn: boolean;
+  mapFocusStep: MapFocusStep;
   hoveredSite: SiteFeature | null;
   hoverPosition: { x: number; y: number } | null;
   mapContainerRef: RefObject<HTMLDivElement | null>;
@@ -693,7 +701,13 @@ function MapCanvas({
           <Minus size={16} />
         </button>
         <button
-          aria-label={districtZoomedIn ? "Zoom back to district" : "Zoom into district"}
+          aria-label={
+            mapFocusStep === 0
+              ? "Zoom into district"
+              : mapFocusStep === 1
+                ? "Zoom back to district"
+                : "Zoom out to Kerala"
+          }
           className="grid h-10 w-11 place-items-center border-l border-[#1e2538] text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]"
           onClick={onToggleFocus}
           type="button"
@@ -928,8 +942,25 @@ function fitToSites(map: Map | null, features: SiteFeature[]) {
 
   map.fitBounds(bounds, {
     duration: 900,
-    maxZoom: features.length > 1 ? 12.1 : 13.2,
+    maxZoom: features.length > 1 ? 12.1 : 10.9,
     padding: getResponsiveMapPadding(map, "overview"),
+  });
+}
+
+function fitToKerala(map: Map | null, features: SiteFeature[]) {
+  if (!map) {
+    return;
+  }
+
+  const bounds = getFeatureBounds(features);
+  if (!bounds) {
+    return;
+  }
+
+  map.fitBounds(bounds, {
+    duration: 920,
+    maxZoom: 7.35,
+    padding: getResponsiveMapPadding(map, "kerala"),
   });
 }
 
@@ -967,14 +998,14 @@ function flyToSite(map: Map | null, feature: SiteFeature) {
   });
 }
 
-function getResponsiveMapPadding(map: Map, mode: "overview" | "site" | "detail") {
+function getResponsiveMapPadding(map: Map, mode: "overview" | "site" | "detail" | "kerala") {
   const width = map.getCanvas().clientWidth;
   const height = map.getCanvas().clientHeight;
   const isTight = mode === "site" || mode === "detail";
-  const left = Math.min(isTight ? 320 : 360, Math.max(32, Math.floor(width * 0.2)));
-  const right = Math.min(isTight ? 96 : 72, Math.max(28, Math.floor(width * 0.06)));
-  const top = Math.min(isTight ? 104 : 56, Math.max(28, Math.floor(height * 0.08)));
-  const bottom = Math.min(isTight ? 104 : 56, Math.max(28, Math.floor(height * 0.08)));
+  const left = Math.min(mode === "kerala" ? 120 : isTight ? 320 : 360, Math.max(32, Math.floor(width * 0.2)));
+  const right = Math.min(mode === "kerala" ? 72 : isTight ? 96 : 72, Math.max(28, Math.floor(width * 0.06)));
+  const top = Math.min(mode === "kerala" ? 48 : isTight ? 104 : 56, Math.max(28, Math.floor(height * 0.08)));
+  const bottom = Math.min(mode === "kerala" ? 48 : isTight ? 104 : 56, Math.max(28, Math.floor(height * 0.08)));
 
   return { bottom, left, right, top };
 }
