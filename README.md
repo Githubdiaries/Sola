@@ -1,9 +1,9 @@
 # Sola ☀️
 
 
-Sola is a full-stack *solar site intelligence platform* for small and mid-size solar EPCs, developers, and commercial rooftop sales teams.
-
-Sola helps teams find rooftops and land parcels with the most usable solar area and strongest project viability, then rank them quickly enough to turn GIS data into qualified pipeline.
+   Sola is a full-stack *solar site intelligence platform* for small and mid-size solar EPCs, developers, and commercial rooftop sales teams.
+   
+   It helps teams find rooftops and land parcels with the most usable solar area and strongest project viability, then rank them quickly enough to turn GIS data into qualified pipeline.
 
 
 ---
@@ -64,17 +64,6 @@ $ Streamlit-based interface <br>
 
 ---
 
-## What Sola Does Not Do Yet
-
-- Final engineering approval <br>
-- Structural roof verification <br>
-- Electrical system design <br>
-- DISCOM or grid approval <br>
-- Land ownership verification <br>
-- Detailed shading analysis <br>
-- Financial feasibility modelling <br>
-- Legal or permitting review <br>
----
 
 ## Customer Value
 
@@ -221,6 +210,25 @@ curl -X POST "http://localhost:8000/api/v1/analysis/suitability" \
 - Sample seed data lives in `scripts/init-db.sql`.
 
 The scoring service is intentionally isolated from the API endpoint so future AI roof detection can update polygons, usable area, shading loss, and confidence metadata without changing route contracts.
+
+---
+## What Sola Does Not Do Yet 
+
+- Final engineering approval <br>
+- Structural roof verification <br>
+- Electrical system design <br>
+- DISCOM or grid approval <br>
+- Land ownership verification <br>
+- Detailed shading analysis <br>
+- Financial feasibility modelling <br>
+- Legal or permitting review <br>
+---
+
+## Future Improvemnts
+
+- Scale it on a larger geographical span. <br>
+-  Club with renewable data centres, in including them as primary costumers . <br>
+-  Make the color gradient score flexible . <br>
 ---
 ## License
 
