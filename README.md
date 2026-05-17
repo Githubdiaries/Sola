@@ -8,11 +8,13 @@ The product helps teams find rooftops and land parcels with the most usable sola
 
 ## User View
 
-<img width="631" height="293" alt="Screenshot 2026-05-18 025533" src="https://github.com/user-attachments/assets/b4851c06-23e4-45fb-bc29-8d4bc21eff6f" />
+<img width="631" height="293" alt="Screenshot 2026-05-18 025533" src="https://github.com/user-attachments/assets/b4851c06-23e4-45fb-bc29-8d4bc21eff6f" width="50%" />
 <br><br>
-<img width="631" height="292" alt="Screenshot 2026-05-18 024732" src="https://github.com/user-attachments/assets/d02529f3-3ef1-4db1-b95e-12a9e4df300e" />
+
+<img width="631" height="292" alt="Screenshot 2026-05-18 024732" src="https://github.com/user-attachments/assets/d02529f3-3ef1-4db1-b95e-12a9e4df300e" width="50%" />
 <br><br>
-## Admin View
+
+## Admin Dashboard
 
 <img width="1536" height="1024" alt="Solana" src="https://github.com/user-attachments/assets/816575ac-2678-43c6-9a2b-2f24b233b7bc" />
 
