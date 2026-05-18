@@ -38,6 +38,11 @@
 
 ## MVP
 
+*UI Inspiration* (Thanks to Google Stitch. Loved it!)
+
+<img width="45%" height="1500" alt="sola_desktop_dashboard_site_selection" src="https://github.com/user-attachments/assets/c219d555-f688-4526-a5da-0f8fbf0ef05b" />
+---
+
  *User Panel*
 
 <img width="631" height="293" alt="Screenshot 2026-05-18 025533" src="https://github.com/user-attachments/assets/b4851c06-23e4-45fb-bc29-8d4bc21eff6f" width="50%" />
@@ -79,11 +84,12 @@ $ Streamlit-based interface <br>
 ---
 
 ## Current Stack
- 
+
+ UI - Google Stitch
+ Frontend: Next.js 15 App Router, TypeScript, Tailwind, MapLibre GL JS. <br>
  Backend: Python 3.11, FastAPI async, SQLAlchemy 2.0, GeoAlchemy2. <br>
  Database: PostgreSQL 16 with PostGIS 3.4. <br>
  GIS: GeoPandas, Shapely, PVLib, Rasterio. <br>
- Frontend: Next.js 15 App Router, TypeScript, Tailwind, MapLibre GL JS. <br>
  Container: Docker Compose with PostGIS, backend API, and Grafana. <br>
 
 ## Repository Structure
