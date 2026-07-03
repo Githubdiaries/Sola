@@ -6,7 +6,6 @@ import {
   Bell,
   ChevronDown,
   Layers,
-  MessageSquare,
   Minus,
   Plus,
   SlidersHorizontal,
@@ -411,7 +410,6 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
               />
 
               <MapSummary avgScore={avgScore} count={filteredFeatures.length} totalArea={totalArea} totalCapacityKw={totalCapacityKw} />
-              <DecisionChat sites={filteredFeatures} />
             </div>
           </section>
 
@@ -427,35 +425,6 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
         </section>
       </div>
     </main>
-  );
-}
-
-function DecisionChat({ sites }: { sites: SiteFeature[] }) {
-  const [question, setQuestion] = useState("Rank sites for a 10MW project with low flood risk and high yield");
-  const [answer, setAnswer] = useState("Ask Gemini to turn project constraints into ranked, explainable site recommendations.");
-  const ask = async () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) {
-      const top = [...sites].sort((a, b) => b.properties.suitability_score - a.properties.suitability_score)[0];
-      setAnswer(top ? `Demo mode: ${top.properties.name} leads with score ${top.properties.suitability_score}, ${numberFormatter.format(top.properties.usable_area_sqm)} sqm usable area, and flood risk ${top.properties.flood_risk_score}.` : "No filtered sites available.");
-      return;
-    }
-    const response = await fetch(`${apiUrl}/api/v1/decision/ask`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, limit: 25 }),
-    });
-    const payload = await response.json();
-    setAnswer(payload.answer ?? JSON.stringify(payload, null, 2));
-  };
-
-  return (
-    <div className="absolute bottom-4 left-4 z-20 w-[min(430px,calc(100%-2rem))] rounded-2xl border border-[#a3ff12]/25 bg-[#05060f]/88 p-4 shadow-2xl backdrop-blur">
-      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#f8fafd]"><MessageSquare size={16} className="text-[#a3ff12]" /> Gemini Decision Agent</div>
-      <textarea className="h-16 w-full resize-none rounded-xl border border-[#1e2538] bg-[#0c0f1c] p-3 text-xs text-[#f8fafd] outline-none focus:border-[#a3ff12]/60" value={question} onChange={(event) => setQuestion(event.target.value)} />
-      <button className="mt-2 rounded-full bg-[#a3ff12] px-4 py-2 text-xs font-bold text-[#05060f]" onClick={ask} type="button">Ask / rank sites</button>
-      <p className="mt-2 max-h-24 overflow-auto text-xs leading-5 text-[#cbd5e1]">{answer}</p>
-    </div>
   );
 }
 
