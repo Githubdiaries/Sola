@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     default_srid: int = 4326
     max_page_size: int = 500
 
+    google_cloud_project: str | None = None
+    vertex_ai_location: str = "us-central1"
+    gemini_model: str = "gemini-1.5-pro"
+    bigquery_dataset: str = "sola_decision_intelligence"
+    cloud_storage_bucket: str | None = None
+
     score_usable_area_weight: float = 0.35
     score_irradiance_weight: float = 0.30
     score_flood_risk_weight: float = 0.20
