@@ -8,7 +8,7 @@ from fastapi.responses import ORJSONResponse
 from pythonjsonlogger import jsonlogger
 from sqlalchemy import text
 
-from app.api.v1.endpoints import analysis, sites
+from app.api.v1.endpoints import analysis, decision, enrichment, sites
 from app.core.config import get_settings
 from app.core.database import engine, init_postgis
 
@@ -53,6 +53,8 @@ app.add_middleware(
 
 app.include_router(sites.router, prefix=settings.api_v1_prefix)
 app.include_router(analysis.router, prefix=settings.api_v1_prefix)
+app.include_router(enrichment.router, prefix=settings.api_v1_prefix)
+app.include_router(decision.router, prefix=settings.api_v1_prefix)
 
 
 @app.exception_handler(Exception)

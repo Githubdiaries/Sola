@@ -239,3 +239,57 @@ The scoring service is intentionally isolated from the API endpoint so future AI
 ## License
 
 AGPL-3.0. See [LICENSE](LICENSE).
+
+
+---
+
+## Hackathon Decision Intelligence Upgrade
+
+Sola now targets Google APAC Gen AI Academy Hackathon Challenge Track 1 as an AI-powered decision intelligence platform for solar EPCs, renewable developers, planners, community energy teams, and renewable data-center siting teams. The critical decision is site prioritization: which parcels or rooftops are viable enough for diligence based on yield, risk, grid proximity, and explainable score drivers.
+
+### Modern Architecture
+
+```mermaid
+flowchart LR
+  Frontend[Next.js MapLibre dashboard] --> API[FastAPI Cloud Run API]
+  API --> PostGIS[(PostGIS)]
+  API --> Gemini[Vertex AI Gemini]
+  Ingest[Cloud Functions / Scheduler] --> GCS[Cloud Storage raw data]
+  GCS --> RAPIDS[NVIDIA RAPIDS cuDF scoring]
+  RAPIDS --> BQ[(BigQuery GEOGRAPHY mart)]
+  BQ --> Looker[Looker Studio]
+  NASA[NASA POWER] --> Ingest
+  GSA[Global Solar Atlas] --> Ingest
+  ERA5[ERA5 / Earth Engine] --> Ingest
+  SRTM[SRTM elevation] --> Ingest
+```
+
+### New backend capabilities
+
+- `GET /api/v1/enrichment/nasa-power` fetches and caches NASA POWER daily/hourly GHI, DNI, DHI, temperature, wind, precipitation, and humidity for any latitude/longitude.
+- `POST /api/v1/decision/ask` adds a Gemini/Vertex AI decision agent with a deterministic local fallback for demos without Google credentials.
+- `backend/app/services/acceleration/rapids_scoring.py` provides pandas CPU and RAPIDS cuDF scoring paths plus benchmark timing.
+- `scripts/gcp/bigquery_schema.sql` creates the BigQuery geospatial mart and `scripts/gcp/sample_queries.sql` demonstrates spatial ranking queries.
+
+### Google Cloud + NVIDIA acceleration impact
+
+Run a CPU baseline:
+
+```bash
+python scripts/benchmark_rapids_scoring.py --rows 1000000
+```
+
+Run on an NVIDIA RAPIDS image/GPU worker:
+
+```bash
+python scripts/benchmark_rapids_scoring.py --rows 1000000 --rapids
+```
+
+Use the reported elapsed seconds and rows/second in the demo to quantify time-to-insight. The intended production path is Cloud Storage raw data → RAPIDS/cuDF or Spark RAPIDS processing → BigQuery GEOGRAPHY tables → Looker Studio and Gemini recommendations.
+
+### Deployment assets
+
+- `scripts/gcp/cloud_run_deploy.sh` builds and deploys the FastAPI backend to Cloud Run.
+- `scripts/gcp/bigquery_schema.sql` defines the analytics schema.
+- `docs/modernization-plan.md` contains the full judging-oriented plan, demo script, and responsible AI notes.
+- `docs/global-solar-atlas.md` documents Global Solar Atlas raster ingestion.
