@@ -376,6 +376,59 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
       <div className="min-h-screen bg-[radial-gradient(circle_at_50%_-20%,rgba(99,102,241,0.13),transparent_34%),linear-gradient(180deg,#090b15_0%,#05060f_42%)]">
         <TopNav query={filters.query} setQuery={(query) => setFilters((current) => ({ ...current, query }))} />
 
+        <section className="mx-auto w-full max-w-[1480px] px-4 pt-5">
+          <div className="overflow-hidden rounded-3xl border border-[#1e2538] bg-[linear-gradient(135deg,rgba(12,15,28,0.98),rgba(9,11,21,0.96))] shadow-[0_26px_90px_rgba(0,0,0,0.38)]">
+            <div className="grid gap-6 px-6 py-6 lg:grid-cols-[1.3fr_0.9fr] lg:px-8 lg:py-8">
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#a3ff12]/25 bg-[#a3ff12]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#ecfccb]">
+                  Hackathon submission
+                </div>
+                <div className="space-y-3">
+                  <h1 className="max-w-3xl text-3xl font-semibold tracking-[-0.04em] text-[#f8fafd] md:text-5xl">
+                    Rank solar sites faster so EPC teams can spend time on the best opportunities, not on manual map screening.
+                  </h1>
+                  <p className="max-w-2xl text-sm leading-7 text-[#c7d2e6] md:text-base">
+                    Sola turns geospatial data into a shortlist for solar sales and planning teams. It ingests candidate parcels, scores viability, and shows which sites deserve a visit first.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "BigQuery", accent: "from-[#1a73e8]/24 to-[#1a73e8]/8 text-[#dbeafe] border-[#1a73e8]/30" },
+                    { label: "Cloud Storage", accent: "from-[#34a853]/24 to-[#34a853]/8 text-[#dcfce7] border-[#34a853]/30" },
+                    { label: "GKE", accent: "from-[#4285f4]/24 to-[#4285f4]/8 text-[#dbeafe] border-[#4285f4]/30" },
+                    { label: "RAPIDS", accent: "from-[#22c55e]/24 to-[#22c55e]/8 text-[#dcfce7] border-[#22c55e]/30" },
+                  ].map((badge) => (
+                    <span
+                      className={`inline-flex items-center rounded-full border bg-gradient-to-r px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] ${badge.accent}`}
+                      key={badge.label}
+                    >
+                      {badge.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                <div className="rounded-2xl border border-[#1e2538] bg-[#0c0f1c]/82 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-[#a3b4d0]">Who uses it</p>
+                  <p className="mt-2 text-sm leading-6 text-[#f8fafd]">Solar EPC pre-sales teams, rooftop developers, and city sustainability analysts.</p>
+                </div>
+                <div className="rounded-2xl border border-[#1e2538] bg-[#0c0f1c]/82 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-[#a3b4d0]">Decision improved</p>
+                  <p className="mt-2 text-sm leading-6 text-[#f8fafd]">Choose which sites deserve a site survey, feasibility review, or budget first.</p>
+                </div>
+                <div className="rounded-2xl border border-[#1e2538] bg-[#0c0f1c]/82 p-4 sm:col-span-2 lg:col-span-1">
+                  <p className="text-xs uppercase tracking-[0.2em] text-[#a3b4d0]">Why it is faster</p>
+                  <p className="mt-2 text-sm leading-6 text-[#f8fafd]">
+                    Batch ranking and interactive filtering replace manual map checking, so the shortlist updates immediately as the user changes district, score, or area thresholds.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="mx-auto flex w-full max-w-[1480px] flex-col gap-4 px-4 pb-6 pt-5 lg:h-[calc(100vh-72px)] lg:flex-row lg:overflow-hidden">
           <FilterSidebar
             areaUnit={areaUnit}
@@ -394,9 +447,12 @@ export function SiteExplorer({ sites }: { sites: SiteCollection; usingSampleData
           />
 
           <section className="min-w-0 flex-1">
-            <div className="mb-3">
+            <div className="mb-3 space-y-2">
               <p className="sola-wordmark text-2xl text-[#f8fafd]">Sola</p>
-              <p className="mt-1 text-sm text-[#a3b4d0]">Premium solar site intelligence platform</p>
+              <p className="text-sm text-[#a3b4d0]">AI-powered solar decision intelligence for EPCs, rooftop developers, and city planners.</p>
+              <p className="max-w-2xl text-sm leading-6 text-[#d7e0f3]">
+                Screen candidate rooftops and parcels in seconds, rank the best opportunities, and export a shortlist that supports faster site visits and better capital allocation.
+              </p>
             </div>
 
             <div className="relative h-[760px] overflow-hidden rounded-2xl border border-[#1e2538] bg-[#0c0f1c] shadow-[0_28px_90px_rgba(0,0,0,0.42)] lg:h-[calc(100vh-142px)]">
@@ -446,11 +502,11 @@ function TopNav({ query, setQuery }: { query: string; setQuery: (query: string) 
         </label>
 
         <div className="ml-auto flex items-center gap-3">
-          <button className="relative grid h-10 w-10 place-items-center rounded-xl border border-[#1e2538] bg-[#0c0f1c] text-[#a3b4d0] transition hover:text-[#f8fafd]" type="button">
+          <button aria-label="Notifications" className="relative grid h-10 w-10 place-items-center rounded-xl border border-[#1e2538] bg-[#0c0f1c] text-[#a3b4d0] transition hover:text-[#f8fafd]" title="Notifications" type="button">
             <Bell size={17} />
             <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[#a3ff12]" />
           </button>
-          <button className="flex h-10 items-center gap-2 rounded-xl border border-[#1e2538] bg-[#0c0f1c] px-2.5 text-sm text-[#f8fafd]" type="button">
+          <button aria-label="User menu" className="flex h-10 items-center gap-2 rounded-xl border border-[#1e2538] bg-[#0c0f1c] px-2.5 text-sm text-[#f8fafd]" title="User menu" type="button">
             <span className="grid h-7 w-7 place-items-center rounded-full bg-[linear-gradient(135deg,#a3ff12,#22c55e)] text-xs font-semibold text-[#05060f]">
               A
             </span>
@@ -534,10 +590,12 @@ function FilterSidebar({
             </span>
           </div>
           <input
+            aria-label="Minimum score"
             className="solarforge-range mt-4 w-full"
             max={100}
             min={0}
             onChange={(event) => setFilters((current) => ({ ...current, minScore: Number(event.target.value) }))}
+            title="Minimum score"
             type="range"
             value={filters.minScore}
           />
@@ -555,6 +613,8 @@ function FilterSidebar({
               aria-label={`Min Area ${areaUnit}`}
               className="h-11 min-w-0 flex-1 bg-transparent px-3 text-sm text-[#f8fafd] outline-none"
               inputMode="numeric"
+              placeholder="Minimum area"
+              title="Minimum area"
               onChange={(event) => {
                 const parsedArea = parseAreaValue(event.target.value);
                 setFilters((current) => ({
@@ -688,16 +748,29 @@ function MapCanvas({
   onToggleFocus: () => void;
   onZoomDelta: (delta: number) => void;
 }) {
+  const hoverTooltipRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const tooltip = hoverTooltipRef.current;
+    if (!tooltip || !hoverPosition) {
+      return;
+    }
+
+    tooltip.style.left = `${hoverPosition.x}px`;
+    tooltip.style.top = `${hoverPosition.y}px`;
+    tooltip.style.transform = hoverPosition.x > 760 ? "translate(-108%, -44%)" : "translate(18px, -44%)";
+  }, [hoverPosition]);
+
   return (
     <div className="absolute inset-0">
       <div ref={mapContainerRef} className="absolute inset-0" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(5,6,15,0.34),transparent_28%,rgba(5,6,15,0.18)_100%),radial-gradient(circle_at_50%_20%,transparent_0%,rgba(5,6,15,0.24)_68%,rgba(5,6,15,0.6)_100%)]" />
 
       <div className="absolute bottom-5 left-6 z-10 flex overflow-hidden rounded-xl border border-[#1e2538] bg-[#0c0f1c]/86 shadow-2xl backdrop-blur">
-        <button className="grid h-10 w-11 place-items-center text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={() => onZoomDelta(0.5)} type="button">
+        <button aria-label="Zoom in" className="grid h-10 w-11 place-items-center text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" title="Zoom in" onClick={() => onZoomDelta(0.5)} type="button">
           <Plus size={16} />
         </button>
-        <button className="grid h-10 w-11 place-items-center border-l border-[#1e2538] text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" onClick={() => onZoomDelta(-0.5)} type="button">
+        <button aria-label="Zoom out" className="grid h-10 w-11 place-items-center border-l border-[#1e2538] text-[#a3b4d0] transition hover:bg-[#141927] hover:text-[#f8fafd]" title="Zoom out" onClick={() => onZoomDelta(-0.5)} type="button">
           <Minus size={16} />
         </button>
         <button
@@ -718,12 +791,8 @@ function MapCanvas({
 
       {hoveredSite && hoverPosition ? (
         <div
-          className="pointer-events-none absolute z-20 w-[250px] rounded-xl border border-[#1e2538] bg-[#0c0f1c]/94 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.45)] backdrop-blur"
-          style={{
-            left: hoverPosition.x,
-            top: hoverPosition.y,
-            transform: hoverPosition.x > 760 ? "translate(-108%, -44%)" : "translate(18px, -44%)",
-          }}
+          ref={hoverTooltipRef}
+          className={`pointer-events-none absolute z-20 w-[250px] rounded-xl border border-[#1e2538] bg-[#0c0f1c]/94 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.45)] backdrop-blur -translate-y-[44%] ${hoverPosition.x > 760 ? "-translate-x-[108%]" : "translate-x-[18px]"}`}
         >
           <div className="flex items-center justify-between gap-3">
             <h4 className="text-sm font-semibold leading-5 text-[#f8fafd]">{hoveredSite.properties.name}</h4>

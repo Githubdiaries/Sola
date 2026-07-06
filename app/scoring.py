@@ -9,21 +9,21 @@ Scoring dimensions (each 0–1, then weighted):
   - structural_score       : structural/land-use viability (0–1)
 
 Default weights (sum to 1.0):
-  usable_area      0.30
-  irradiance       0.25
-  flood_risk       0.20
-  grid_proximity   0.15
-  structural       0.10
+    irradiance       0.40
+    usable_area      0.30
+    flood_risk       0.15
+    grid_proximity   0.10
+    structural       0.10
 """
 from __future__ import annotations
 import numpy as np
 import pandas as pd
 
 DEFAULT_WEIGHTS = {
+    "irradiance": 0.40,
     "usable_area": 0.30,
-    "irradiance": 0.25,
-    "flood_risk": 0.20,
-    "grid_proximity": 0.15,
+    "flood_risk": 0.15,
+    "grid_proximity": 0.10,
     "structural": 0.10,
 }
 

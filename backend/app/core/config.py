@@ -38,9 +38,9 @@ class Settings(BaseSettings):
     default_srid: int = 4326
     max_page_size: int = 500
 
-    score_usable_area_weight: float = 0.35
-    score_irradiance_weight: float = 0.30
-    score_flood_risk_weight: float = 0.20
+    score_irradiance_weight: float = 0.40
+    score_usable_area_weight: float = 0.30
+    score_flood_risk_weight: float = 0.15
     score_grid_proximity_weight: float = 0.15
 
     @computed_field  # type: ignore[prop-decorator]

@@ -31,14 +31,14 @@ class SuitabilityService:
         self.settings = settings or get_settings()
 
     def score(self, inputs: SuitabilityInputs) -> float:
-        area_score = self._clamp(inputs.usable_area_sqm / 10_000)
         irradiance_score = self._clamp((inputs.annual_ghi_kwh_m2 - 1_300) / 800)
+        area_score = self._clamp(inputs.usable_area_sqm / 10_000)
         flood_score = 1 - self._clamp(inputs.flood_risk_score)
         grid_score = 1 - self._clamp(inputs.grid_distance_km / 10)
 
         weighted_score = (
-            area_score * self.settings.score_usable_area_weight
-            + irradiance_score * self.settings.score_irradiance_weight
+            irradiance_score * self.settings.score_irradiance_weight
+            + area_score * self.settings.score_usable_area_weight
             + flood_score * self.settings.score_flood_risk_weight
             + grid_score * self.settings.score_grid_proximity_weight
         )

@@ -1,8 +1,25 @@
 # Sola ☀️
 
-Sola is a full-stack *solar site intelligence platform* for small and mid-size solar EPCs, developers, and commercial rooftop sales teams.
+Sola is an AI-powered solar decision-intelligence platform for solar EPCs, rooftop sales teams, sustainability managers, and public-sector planners.
 
-The product helps teams find rooftops and land parcels with the most usable solar area and strongest project viability, then rank them quickly enough to turn GIS data into qualified pipeline.
+It helps a real user decide which rooftops or parcels are worth a site visit by turning messy geospatial data into a ranked shortlist, a map view, and exportable recommendations in seconds instead of manual map trawling.
+
+## Submission Snapshot
+
+- **Problem:** solar site screening is slow, manual, and hard to compare across many rooftops and parcels.
+- **User:** EPC pre-sales teams, rooftop developers, and city sustainability analysts.
+- **Decision:** which sites deserve a survey, feasibility review, or budget allocation first.
+- **Pipeline:** site data is ingested into PostGIS, scored, ranked, filtered, and rendered as GeoJSON for the frontend.
+- **Output:** a ranked shortlist, interactive map, score breakdowns, and CSV/GeoJSON export.
+- **Acceleration story:** the shortlist updates instantly as the user changes filters, reducing time-to-insight versus manual map review.
+- **Cloud/GPU narrative:** the repo is structured to map cleanly onto Cloud Storage, BigQuery, GKE, and RAPIDS if the team wants to scale the demo beyond the local MVP.
+
+## Real-World User and Decision
+
+- **User:** solar EPC pre-sales teams, commercial rooftop developers, and city sustainability analysts.
+- **Decision:** which sites deserve a site survey, feasibility review, or engineering budget first.
+- **Bottleneck:** manual GIS review across many polygons, distance checks, and risk factors is slow and hard to compare consistently.
+- **Outcome:** Sola ranks candidate sites by solar irradiance first, then maximum usable solar space, then flood risk and grid proximity so the best options can be acted on faster.
 
 ## MVP
 
@@ -29,10 +46,39 @@ The product helps teams find rooftops and land parcels with the most usable sola
 ## Customer Value
 
 - Find high-potential commercial rooftops and sites without manual map trawling.
-- Prioritize leads by usable area, irradiance, flood risk, and grid proximity.
+- Prioritize leads by solar irradiance first, then usable solar space, flood risk, and grid proximity.
 - Return ranked polygons as GeoJSON for map workflows and downstream analysis.
 - Keep the data model ready for AI roof detection, shading analysis, and grid hosting layers.
 - Give sales and development teams a shared source of truth for early site screening.
+
+## Submission Fit
+
+This repository is positioned to satisfy the hackathon brief as a practical data intelligence tool:
+
+- **Data pipeline:** sample and PostGIS-backed geospatial site data is ingested, cleaned, scored, ranked, and rendered as GeoJSON for a map-first workflow.
+- **Useful output:** ranked recommendations, interactive filtering, suitability scoring, and CSV/GeoJSON export.
+- **Acceleration story:** the app collapses what is usually a manual screening workflow into an interactive shortlist that can be refreshed and re-ranked instantly as filters change.
+- **Community value:** the same pattern applies to solar planning, public asset optimization, and other city-scale sustainability decisions.
+
+## Judge Checklist
+
+- A real-world user and problem are named.
+- The decision bottleneck is explicit.
+- The data pipeline is visible end to end.
+- The output is useful for actual planning work.
+- The acceleration claim is tied to faster shortlist generation.
+- The cloud and GPU layer are described honestly as the scale-up path, not as a fake implementation claim.
+
+## Google Cloud and NVIDIA Alignment
+
+The current implementation is a local-first MVP, but the architecture is compatible with the required stack for a submission narrative or deployment path:
+
+- **Cloud Storage:** store source rasters, parcel feeds, and cleaned GeoJSON layers.
+- **BigQuery:** host large tabular site inventories, risk tables, and feature engineering outputs.
+- **Google Kubernetes Engine:** run the API, frontend, and scheduled workers as scalable services.
+- **NVIDIA acceleration layer:** use RAPIDS, cuDF, or Spark RAPIDS to accelerate large-scale geospatial joins, scoring, and ranking when the dataset grows.
+
+In the current repo, PostGIS and the FastAPI scoring service provide the same product behavior locally; the cloud and GPU layers are the natural scale-up path for the submission.
 
 ## Current Stack
 
@@ -122,6 +168,16 @@ NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+The frontend is the primary demo surface for the hackathon story: it shows the user, the decision, the shortlist, and the acceleration effect in one screen.
+
+## Demo Script
+
+1. Open the map and explain the target user: solar EPC pre-sales teams and city planners.
+2. Show the ranked list and explain the scoring order.
+3. Change the district, score, or minimum area to demonstrate instant re-ranking.
+4. Open a top site and point to the map, score, and export path.
+5. Explain that Cloud Storage, BigQuery, GKE, and RAPIDS are the natural scale-up path for larger public or utility datasets.
 
 ## API Examples
 
